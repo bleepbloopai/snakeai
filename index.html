@@ -1,0 +1,162 @@
+<!-- Add this immediately before <div class="game"> -->
+<div id="botSpeedControl" aria-label="Bot speed control">
+  <label for="botSpeed">Bot speed</label>
+  <input id="botSpeed" type="range" min="1" max="10" value="5" step="1" orient="vertical">
+  <output id="botSpeedValue">5</output>
+</div>
+
+/* Add this inside your <style> */
+#botSpeedControl {
+  position: fixed;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  width: 52px;
+  min-height: 190px;
+  padding: 10px 7px;
+  border-radius: 14px;
+  background: var(--bar);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 3px 8px rgba(0,0,0,.22);
+}
+
+#botSpeedControl label {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.1;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+#botSpeed {
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  width: 28px;
+  height: 110px;
+  accent-color: #fff;
+  cursor: pointer;
+  touch-action: none;
+}
+
+#botSpeedValue {
+  min-width: 24px;
+  padding: 2px 5px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.16);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  #botSpeedControl {
+    left: 5px;
+    width: 44px;
+    min-height: 170px;
+    padding: 8px 5px;
+  }
+
+  #botSpeed {
+    height: 95px;
+  }
+}
+
+/* Add this after your existing SPEEDS constant */
+const botSpeedEl = document.getElementById("botSpeed");
+const botSpeedValue = document.getElementById("botSpeedValue");
+
+/*
+  1 = very slow
+  5 = normal
+  10 = very fast
+
+  The slider changes the bot's actual tick delay immediately.
+*/
+function getBotDelay() {
+  const v = Number(botSpeedEl.value);
+  const minDelay = 45;
+  const maxDelay = 300;
+
+  // Higher slider value = faster bot.
+  return maxDelay - ((v - 1) / 9) * (maxDelay - minDelay);
+}
+
+function updateBotSpeed() {
+  const value = Number(botSpeedEl.value);
+  botSpeedValue.textContent = value;
+
+  if (botOn && state === "running") {
+    const oldDelay = delay;
+    const newDelay = getBotDelay();
+
+    // Preserve the current interpolation position when speed changes.
+    if (oldDelay > 0) {
+      acc = Math.min(newDelay - 1, acc * (newDelay / oldDelay));
+    }
+
+    delay = newDelay;
+  }
+}
+
+botSpeedEl.addEventListener("input", updateBotSpeed);
+updateBotSpeed();
+
+
+Then make this small change inside your existing reset() function.
+
+Replace:
+
+delay = SPEEDS[cfg.speed];
+
+
+With:
+
+delay = botOn ? getBotDelay() : SPEEDS[cfg.speed];
+
+
+And inside setBotOn(), after:
+
+botOn = on; cfg.bot = on ? "on" : "off"; setBot.value = cfg.bot; saveCfg();
+
+
+add:
+
+delay = botOn ? getBotDelay() : SPEEDS[cfg.speed];
+
+
+Finally, change the beginning of tick() from:
+
+function tick() {
+  if (botOn) {
+
+
+to:
+
+function tick() {
+  if (botOn) {
+    delay = getBotDelay();
+
+Result
+
+The left side will look roughly like:
+
+        ┌───────┐
+        │  Bot  │
+        │ speed │
+        │       │
+        │   ●   │
+        │   │   │
+        │   │   │
+        │   │   │
+        │   5   │
+        └───────┘
+
+
+1 = slowest, 10 = fastest, and moving the slider changes the bot's speed immediately without restarting the game.

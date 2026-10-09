@@ -107,7 +107,11 @@
   #parallelStart, #parallelStop { font: inherit; font-weight: 700; font-size: 14px; color: #fff; border: 0; border-radius: 20px; padding: 7px 14px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
   #parallelStart { background: #4e7cf6; box-shadow: 0 2px 0 #2f55c4; }
   #parallelStop { background: #a63d32; }
-  #parallelStart:disabled, #parallelStop:disabled { opacity: .45; cursor: default; }
+  #parallelStart:disabled, #parallelStop:disabled, #humanStart:disabled, #humanStop:disabled { opacity: .45; cursor: default; }
+  #humanStart, #humanStop { font: inherit; font-weight: 700; font-size: 14px; color: #fff; border: 0; border-radius: 20px; padding: 7px 14px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  #humanStart { background: #36a269; box-shadow: 0 2px 0 #237044; }
+  #humanStop { background: #a63d32; }
+  #humanStatus { margin: 7px 0 0; font-size: 12px; opacity: .86; line-height: 1.35; }
   #nerdBtn { position: fixed; top: calc(54px + env(safe-area-inset-top, 0px)); right: 10px; z-index: 5; font: inherit; font-size: 12px; font-weight: 700;
     color: #fff; background: var(--bar); border: 0; border-radius: 20px; padding: 7px 11px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
   #nerdBtn img { width: 17px; height: 17px; object-fit: contain; vertical-align: -4px; margin-right: 3px; }
@@ -129,7 +133,7 @@
 <body>
 <button id="lbBtn" type="button"><img src="trophy.png" alt=""> Leaderboards</button>
 <button id="setBtn" type="button"><img src="cog.png" alt=""> Settings</button>
-<button id="nerdBtn" type="button" aria-expanded="false"><img src="nerd.png" alt=""> Nerdy stuff (ignore)</button>
+<button id="nerdBtn" type="button" aria-expanded="false"><img src="nerd.png" alt=""> Nerdy stuff (igbore)</button>
 <div id="nerdPanel" hidden role="dialog" aria-label="Training dashboard">
   <div id="nerdHead"><h2>Live training dashboard</h2><button id="nerdClose" type="button" aria-label="Close">✕</button></div>
   <div id="nerdGrid">
@@ -163,6 +167,10 @@
         <button id="parallelStart" type="button">Start training</button>
         <button id="parallelStop" type="button" disabled>Stop training</button>
         <p id="parallelStatus">Training is off. Hidden games use the same shared AI brain as the visible snake.</p>
+        <h3>Human train AI</h3>
+        <button id="humanStart" type="button">Start human training</button>
+        <button id="humanStop" type="button" disabled>Stop human training</button>
+        <p id="humanStatus">Play with arrow keys, WASD, or swipe. The AI will watch your decisions and learn from them.</p>
       </div>
     </div>
     <button id="setReset" type="button">Reset colors</button>
@@ -228,6 +236,7 @@
   const settingsEl = $("settings"), setSpeed = $("setSpeed"), setMap = $("setMap"), setApples = $("setApples");
   const setSnake = $("setSnake"), setMapColor = $("setMapColor"), setPerf = $("setPerf"), setSound = $("setSound"), setAuto = $("setAuto"), setBg = $("setBg");
   const parallelCount = $("parallelCount"), parallelStart = $("parallelStart"), parallelStop = $("parallelStop"), parallelStatus = $("parallelStatus");
+  const humanStart = $("humanStart"), humanStop = $("humanStop"), humanStatus = $("humanStatus");
   const nerdBtn = $("nerdBtn"), nerdPanel = $("nerdPanel"), nerdClose = $("nerdClose"), nerdGames = $("nerdGames"), nerdWinRate = $("nerdWinRate"), nerdAvgScore = $("nerdAvgScore"), nerdAvgSteps = $("nerdAvgSteps");
   const speedSlider = $("speedSlider");
   speedSlider.addEventListener("input", () => { cfg.aiSpeed = +speedSlider.value; delay = speedDelay(); saveCfg(); });
@@ -241,7 +250,7 @@
   try { best = parseInt(localStorage.getItem("snake-best"), 10) || 0; } catch (e) {}
   bestEl.textContent = best;
 
-  let snake, prev, dir, queue, food, foodBorn, score, delay, state, acc, last, deathAt, overTimer, grew, waiting = false, cdT = 0, foods = [], ang = 0, shake = 0, lastFrame = 0, particles = [], wallSeed = 0;
+  let snake, prev, dir, queue, food, foodBorn, score, delay, state, acc, last, deathAt, overTimer, grew, waiting = false, humanTraining = false, cdT = 0, foods = [], ang = 0, shake = 0, lastFrame = 0, particles = [], wallSeed = 0;
   // state: ready | running | paused | countdown | over | won
 
   let runId = 0;
@@ -421,26 +430,40 @@
     try { localStorage.setItem("snake-ai-q", JSON.stringify(Array.from(Q, v => +v.toFixed(2)))); } catch (e) {}
     aiSync(4000);
   }
-  async function aiSync(gap) {                               // push what we learned, pull the shared brain
+  let aiSyncBusy = false, aiLastLocalSave = 0;
+  function aiSaveLocalOnly() {
+    try {
+      localStorage.setItem("snake-ai-q", JSON.stringify(Array.from(Q, v => +v.toFixed(2))));
+      aiLastLocalSave = Date.now();
+    } catch (e) {}
+  }
+  function validClientBrain(q) { return Array.isArray(q) && q.length === NQ && q.every(Number.isFinite); }
+  function qStrength(q) { let total = 0; for (const value of q) total += Math.abs(value); return total; }
+  async function aiSync(gap) {
     const now = Date.now();
-    if (!AI_URL || now - aiLastSync < gap) return;
-    aiLastSync = now;
+    if (!AI_URL || now - aiLastSync < gap || aiSyncBusy) return;
+    aiSyncBusy = true; aiLastSync = now;
     const snap = aiAcc, g = aiGames; aiAcc = new Map(); aiGames = 0;
     const u = Array.from(snap, ([i, e]) => [i, Math.min(e.c, 50), +(e.t / e.c).toFixed(2)]);
     try {
-      const r = await fetch(AI_URL + (u.length ? "/learn" : "/brain"),
-        u.length ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ u, g }) } : undefined);
+      const r = await fetch(AI_URL + (u.length ? "/learn" : "/brain"), u.length ? {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ u, g })
+      } : undefined);
       const b = r.ok ? await r.json() : null;
-      if (!b || !Array.isArray(b.q) || b.q.length !== NQ) throw 0;
-      Q = Float32Array.from(b.q);
+      if (!b || !validClientBrain(b.q)) throw new Error("Invalid brain response");
+      const incoming = Float32Array.from(b.q), localStrength = qStrength(Q), incomingStrength = qStrength(incoming);
+      // Never replace a trained local brain with a blank or suspiciously weak response.
+      if (localStrength === 0 || incomingStrength >= localStrength * 0.15) {
+        Q = incoming; aiSaveLocalOnly();
+      }
     } catch (e) {
       for (const [i, x] of snap) { const y = aiAcc.get(i) || { c: 0, t: 0 }; y.c += x.c; y.t += x.t; aiAcc.set(i, y); }
       aiGames += g;
-    }
+    } finally { aiSyncBusy = false; }
   }
   aiSync(0);
   /* ---------- parallel training: worker pool, one main-thread shared Q-table ---------- */
-  let parallelWorkers = [], parallelRunning = false, parallelTrained = 0, parallelWins = 0, parallelScoreTotal = 0, parallelStepsTotal = 0, parallelLastBroadcast = 0;
+  let parallelWorkers = [], parallelWorkerURL = null, parallelRunning = false, parallelTrained = 0, parallelWins = 0, parallelScoreTotal = 0, parallelStepsTotal = 0, parallelLastBroadcast = 0;
   function parallelWorker() {
   "use strict";
   let q = new Float32Array(576 * 3), running = false, cfg = null, lanes = 1, games = 0;
@@ -456,7 +479,7 @@
   function choose(st,foods,snake){const d0=dist(foods,snake[0]), cand=[], vals=[];let best=-1,bv=-1e9;for(let a=0;a<3;a++){if(st.db>>a&1)continue;const v=q[st.s*3+a]+((st.rb>>a&1)?0:-30)+(d0-dist(foods,st.cells[a]))*.5+Math.random()*.01;cand.push(a);vals.push(v);if(v>bv){bv=v;best=a;}}if(best<0)return 0;if(Math.random()<EPS&&cand.length>1)best=cand[Math.floor(Math.random()*cand.length)];return best;}
   function add(up,i,target){const e=up.get(i)||[0,0];e[0]++;e[1]+=target;up.set(i,e);}
   function food(snake,foods,seed){const taken=new Set(snake.concat(foods).map(c=>key(c.x,c.y))),free=[],x0=cfg.inf?snake[0].x-8:0,y0=cfg.inf?snake[0].y-7:0;for(let y=y0;y<y0+cfg.rows;y++)for(let x=x0;x<x0+cfg.cols;x++)if(!taken.has(key(x,y))&&!wall(x,y,seed))free.push({x,y});if(free.length)foods.push(free[Math.floor(Math.random()*free.length)]);}
-  function one(up){const seed=(Math.random()*2147483647)|0,cy=Math.floor(cfg.rows/2),snake=[{x:5,y:cy},{x:4,y:cy},{x:3,y:cy}],foods=[],dir=[1,0];let score=0,won=false,steps=0;food(snake,foods,seed);let pending=null,trace=[];for(let step=0;step<Math.min(3000,cfg.maxSteps);step++){steps=step+1;const st=state(snake,dir,foods,seed);if(pending)add(up,pending.i,pending.r+GAMMA*max(st));const act=choose(st,foods,snake);dir=st.mv[act];pending={i:st.s*3+act,r:0};const head={x:snake[0].x+dir[0],y:snake[0].y+dir[1]},hit=blocked(head.x,head.y,new Set(snake.slice(0,-1).map(c=>key(c.x,c.y))),seed),fi=hit?-1:foods.findIndex(f=>f.x===head.x&&f.y===head.y),eating=fi>=0;pending.r=eating?Math.min(10+5*score,200):(dist(foods,snake[0])>dist(foods,head)? .5:-.7);trace.push(pending.i);if(trace.length>20)trace.shift();if(hit){const pen=Math.min(150+10*score,300);add(up,pending.i,-pen);trace.slice(0,-1).reverse().forEach((i,k)=>add(up,i,-pen*Math.pow(.8,k+1)));break;}snake.unshift(head);if(eating){score++;foods.splice(fi,1);food(snake,foods,seed);}else snake.pop();if(!foods.length)food(snake,foods,seed);if(score>=cfg.targetScore){won=true;break;}if(cfg.inf)for(let i=foods.length-1;i>=0;i--)if(Math.abs(foods[i].x-head.x)>10||Math.abs(foods[i].y-head.y)>9){foods.splice(i,1);food(snake,foods,seed);}}games++;return {win:won,score,steps};}
+  function one(up){const seed=(Math.random()*2147483647)|0,cy=Math.floor(cfg.rows/2),snake=[{x:5,y:cy},{x:4,y:cy},{x:3,y:cy}],foods=[];let dir=[1,0],score=0,won=false,steps=0;food(snake,foods,seed);let pending=null,trace=[];for(let step=0;step<Math.min(3000,cfg.maxSteps);step++){steps=step+1;const st=state(snake,dir,foods,seed);if(pending)add(up,pending.i,pending.r+GAMMA*max(st));const act=choose(st,foods,snake);dir=st.mv[act];pending={i:st.s*3+act,r:0};const head={x:snake[0].x+dir[0],y:snake[0].y+dir[1]},hit=blocked(head.x,head.y,new Set(snake.slice(0,-1).map(c=>key(c.x,c.y))),seed),fi=hit?-1:foods.findIndex(f=>f.x===head.x&&f.y===head.y),eating=fi>=0;pending.r=eating?Math.min(10+5*score,200):(dist(foods,snake[0])>dist(foods,head)? .5:-.7);trace.push(pending.i);if(trace.length>20)trace.shift();if(hit){const pen=Math.min(150+10*score,300);add(up,pending.i,-pen);trace.slice(0,-1).reverse().forEach((i,k)=>add(up,i,-pen*Math.pow(.8,k+1)));break;}snake.unshift(head);if(eating){score++;foods.splice(fi,1);food(snake,foods,seed);}else snake.pop();if(!foods.length)food(snake,foods,seed);if(score>=cfg.targetScore){won=true;break;}if(cfg.inf)for(let i=foods.length-1;i>=0;i--)if(Math.abs(foods[i].x-head.x)>10||Math.abs(foods[i].y-head.y)>9){foods.splice(i,1);food(snake,foods,seed);}}games++;return {win:won,score,steps};}
   function loop(){if(!running)return;const up=new Map();let wins=0,score=0,steps=0;for(let i=0;i<lanes;i++){const r=one(up);wins+=r.win?1:0;score+=r.score;steps+=r.steps;}postMessage({type:"batch",games, wins, score, steps, updates:Array.from(up,([i,e])=>[i,e[0],e[1]])});games=0;setTimeout(loop,0);}
   onmessage=e=>{const m=e.data;if(m.type==="init"){cfg=m.cfg;lanes=m.lanes;q=Float32Array.from(m.q);running=true;loop();}else if(m.type==="q"){q=Float32Array.from(m.q);}else if(m.type==="stop"){running=false;} };
 }
@@ -473,7 +496,8 @@
   function parallelHandleBatch(m) {
     if (!parallelRunning) return;
     parallelTrained += m.games || 0;
-    parallelWins += m.wins || 0; parallelScoreTotal += m.score || 0; parallelStepsTotal += m.steps || 0;
+    parallelWins += m.wins || 0;
+    if (Date.now() - aiLastLocalSave >= 5000) aiSaveLocalOnly(); parallelScoreTotal += m.score || 0; parallelStepsTotal += m.steps || 0;
     updateNerdDashboard();
     for (const [i, count, total] of (m.updates || [])) {
       if (!count) continue;
@@ -488,15 +512,19 @@
   }
   function stopParallelTraining(message = "Training is off. Hidden games use the same shared AI brain as the visible snake.") {
     for (const w of parallelWorkers) { try { w.postMessage({ type: "stop" }); w.terminate(); } catch (e) {} }
-    parallelWorkers = []; parallelRunning = false; parallelStart.disabled = false; parallelStop.disabled = true;
+    parallelWorkers = [];
+    if (parallelWorkerURL) { try { URL.revokeObjectURL(parallelWorkerURL); } catch (e) {} parallelWorkerURL = null; }
+    parallelRunning = false; parallelStart.disabled = false; parallelStop.disabled = true;
     parallelSetStatus(message);
   }
   function startParallelTraining() {
+    stopHumanTraining();
     stopParallelTraining();
     const requested = Number(parallelCount.value);
     if (!requested) return;
     if (!window.Worker) { parallelSetStatus("Parallel training is unavailable in this browser."); parallelCount.value = "0"; return; }
-    const workerURL = URL.createObjectURL(new Blob([PARALLEL_WORKER_SOURCE], { type: "text/javascript" }));
+    parallelWorkerURL = URL.createObjectURL(new Blob([PARALLEL_WORKER_SOURCE], { type: "text/javascript" }));
+    const workerURL = parallelWorkerURL;
     const cores = Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
     const pool = Math.min(requested, cores, 8), base = Math.floor(requested / pool), extra = requested % pool;
     parallelRunning = true; parallelTrained = 0; parallelWins = 0; parallelScoreTotal = 0; parallelStepsTotal = 0;
@@ -507,15 +535,30 @@
     for (let i = 0; i < pool; i++) {
       const w = new Worker(workerURL);
       w.onmessage = e => parallelHandleBatch(e.data);
-      w.onerror = () => parallelSetStatus("A training worker stopped unexpectedly; remaining workers continue.");
+      w.onerror = e => parallelSetStatus("Worker error: " + (e.message || "unknown error") + " @" + (e.lineno || "?") + ":" + (e.colno || "?") + "; remaining workers continue.");
       parallelWorkers.push(w);
       w.postMessage({ type: "init", lanes: base + (i < extra ? 1 : 0), cfg: trainCfg, q: Array.from(Q) });
     }
-    URL.revokeObjectURL(workerURL);
   }
   parallelStart.addEventListener("click", startParallelTraining);
   parallelStop.addEventListener("click", () => stopParallelTraining());
   parallelCount.addEventListener("change", () => { if (parallelRunning) startParallelTraining(); });
+  function updateHumanStatus(text) { humanStatus.textContent = text; }
+  function stopHumanTraining(message = "Human training is off. The AI controls the snake again.") {
+    humanTraining = false; waiting = false; humanStart.disabled = false; humanStop.disabled = true;
+    updateHumanStatus(message);
+  }
+  function startHumanTraining() {
+    stopParallelTraining();
+    humanTraining = true; waiting = true; queue = []; aiPending = null; aiTrace = [];
+    humanStart.disabled = true; humanStop.disabled = false;
+    updateHumanStatus("Human training active. Move with arrow keys, WASD, or swipe; the AI is watching.");
+    if (state === "ready" || state === "over" || state === "won") { reset(); state = "running"; hideOverlay(); }
+    else if (state === "paused") { state = "running"; hideOverlay(); }
+    last = performance.now();
+  }
+  humanStart.addEventListener("click", startHumanTraining);
+  humanStop.addEventListener("click", () => stopHumanTraining());
   function closeNerdPanel() { nerdPanel.hidden = true; nerdBtn.setAttribute("aria-expanded", "false"); }
   nerdBtn.addEventListener("click", () => { const open = nerdPanel.hidden; nerdPanel.hidden = !open; nerdBtn.setAttribute("aria-expanded", String(open)); });
   nerdClose.addEventListener("click", closeNerdPanel);
@@ -641,7 +684,18 @@
   function tick() {
     const st = aiState();
     if (aiPending) aiUpdate(aiPending.i, aiPending.r + GAMMA * aiMax(st));
-    const act = aiChoose(st); dir = st.mv[act]; aiPending = { i: st.s * 3 + act, r: 0 };
+    let act;
+    if (humanTraining) {
+      if (!queue.length) { waiting = true; return; }
+      const requested = queue.shift();
+      act = st.mv.findIndex(m => m.x === requested.x && m.y === requested.y);
+      if (act < 0 || (st.db >> act & 1)) act = st.mv.findIndex(m => m.x === dir.x && m.y === dir.y);
+      if (act < 0) act = 0;
+      dir = st.mv[act];
+    } else {
+      act = aiChoose(st); dir = st.mv[act];
+    }
+    waiting = false; aiPending = { i: st.s * 3 + act, r: 0 };
     if (++aiSteps % 400 === 0) aiSync(15000);
     const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
     const hitWall = (!INF && (head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS)) || isWall(head.x, head.y);
@@ -681,6 +735,7 @@
   }
 
   function finish(result) {
+    if (humanTraining) { aiSave(); stopHumanTraining("Run ended. Your decisions were added to the shared AI brain."); }
     aiSave(); lbRecord(score);
     if (cfg.auto === "on" && (!document.hidden || cfg.bg === "on") && !setOpen && !lbOpen) { state = result; startOrToggle(); return; }   // auto replay: restart instantly
     if (result === "over") { shake = PERF ? 0 : 1; beep(200, 50, .4, "sawtooth"); } else beep(600, 1200, .4);
@@ -836,7 +891,7 @@
     const name = KEYMAP[e.key];
     if (name) {
       e.preventDefault();
-      if (state === "ready") startOrToggle();
+      if (state === "ready") { if (humanTraining) { state = "running"; hideOverlay(); } else startOrToggle(); }
       if (state === "running") steer(name);
     } else if (e.code === "Space") {
       e.preventDefault(); if (!e.repeat) startOrToggle();
@@ -861,7 +916,7 @@
     if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
     const name = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
     tx = t.clientX; ty = t.clientY; swiped = true;          // re-anchor so chained swipes work
-    if (state === "ready") startOrToggle();
+    if (state === "ready") { if (humanTraining) { state = "running"; hideOverlay(); } else startOrToggle(); }
     if (state === "running") steer(name);
   }, { passive: false });
   canvas.addEventListener("touchend", e => {

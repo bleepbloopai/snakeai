@@ -4,638 +4,137 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snake</title>
-
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
 <style>
   :root {
-    --bar: #4a752c;
-    --page: #578a34;
-    --a: #aad751;
-    --b: #a2d149;
+    --bar: #4a752c; --page: #578a34; --a: #aad751; --b: #a2d149;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-
   * { box-sizing: border-box; }
-
-  html, body {
-    height: 100%;
-    margin: 0;
-  }
-
+  html, body { height: 100%; margin: 0; }
   body {
-    background: var(--page);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: var(--page); display: flex; align-items: center; justify-content: center;
     font-family: "Google Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    padding: 56px 0 12px;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    padding: 56px 0 12px;      /* keeps the board clear of the Leaderboards / Settings buttons */
   }
-
-  /* LEFT BOT SPEED PANEL */
-  #botSpeedPanel {
-    position: fixed;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 6;
-
-    width: 58px;
-    min-height: 245px;
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-
-    padding: 12px 8px;
-
-    color: #fff;
-    background: var(--bar);
-    border-radius: 18px;
-    box-shadow: 0 3px 8px rgba(0,0,0,.22);
-  }
-
-  #botSpeedPanel .speed-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-align: center;
-    line-height: 1.1;
-    white-space: nowrap;
-    transform: rotate(-90deg);
-    width: 42px;
-    height: 18px;
-  }
-
-  #botSpeedValue {
-    font-size: 12px;
-    font-weight: 700;
-    min-width: 36px;
-    text-align: center;
-  }
-
-  #botSpeed {
-    -webkit-appearance: none;
-    appearance: none;
-
-    width: 190px;
-    height: 7px;
-
-    transform: rotate(-90deg);
-
-    background: rgba(255,255,255,.35);
-    border-radius: 10px;
-    outline: none;
-    cursor: pointer;
-  }
-
-  #botSpeed::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-
-    width: 22px;
-    height: 22px;
-
-    border-radius: 50%;
-    background: #fff;
-    border: 3px solid #4e7cf6;
-
-    box-shadow: 0 2px 4px rgba(0,0,0,.25);
-    cursor: grab;
-  }
-
-  #botSpeed::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
-
-    border-radius: 50%;
-    background: #fff;
-    border: 3px solid #4e7cf6;
-
-    box-shadow: 0 2px 4px rgba(0,0,0,.25);
-    cursor: grab;
-  }
-
-  #botSpeed::-webkit-slider-runnable-track {
-    height: 7px;
-    border-radius: 10px;
-  }
-
-  #botSpeed::-moz-range-track {
-    height: 7px;
-    border-radius: 10px;
-    background: rgba(255,255,255,.35);
-  }
-
-  #botSpeedPanel .speed-label {
-    font-size: 9px;
-    opacity: .8;
-    text-align: center;
-  }
-
-  /* Hide the panel on very narrow screens so it doesn't cover the board */
-  @media (max-width: 520px) {
-    #botSpeedPanel {
-      left: 5px;
-      width: 48px;
-      padding: 8px 5px;
-    }
-
-    #botSpeed {
-      width: 155px;
-    }
-
-    .game {
-      margin-left: 22px;
-    }
-  }
-
-  .game {
-    width: min(
-      96vw,
-      var(--maxw, 612px),
-      calc((100vh - 124px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * var(--ar, 1))
-    );
-  }
-
+  /* board = biggest size that fits the screen width AND height (bar 56px + top buttons 56px + margin 12px), max ~48px squares */
+  .game { width: min(96vw, var(--maxw, 612px), calc((100vh - 124px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * var(--ar, 1))); }
   @supports (height: 100dvh) {
-    .game {
-      width: min(
-        96vw,
-        var(--maxw, 612px),
-        calc((100dvh - 124px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * var(--ar, 1))
-      );
-    }
+    .game { width: min(96vw, var(--maxw, 612px), calc((100dvh - 124px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * var(--ar, 1))); }
   }
-
-  .ico {
-    display: inline-block;
-    font-style: normal;
-    line-height: 0;
-    flex: none;
-  }
-
-  .ico svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
   .bar {
-    background: var(--bar);
-    color: #fff;
-    height: 56px;
-    padding: 0 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 36px;
-    border-radius: 8px 8px 0 0;
-    font-size: 22px;
-    font-weight: 600;
+    background: var(--bar); color: #fff; height: 56px; padding: 0 18px;
+    display: flex; align-items: center; justify-content: center; gap: 36px;
+    border-radius: 8px 8px 0 0; font-size: 22px; font-weight: 600;
   }
-
-  .stat {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .stat .ico {
-    width: 30px;
-    height: 30px;
-  }
-
-  .stat span {
-    display: inline-block;
-  }
-
-  .stat span.pop {
-    animation: pop .28s ease;
-  }
-
-  @keyframes pop {
-    50% { transform: scale(1.35); }
-  }
-
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(8px) scale(.96);
-    }
-  }
-
-  .overlay.show h2,
-  .overlay.show p {
-    animation: rise .35s ease both;
-  }
-
-  .stage {
-    position: relative;
-    line-height: 0;
-  }
-
-  canvas {
-    width: 100%;
-    display: block;
-    border-radius: 0 0 8px 8px;
-    touch-action: none;
-    outline: none;
-  }
-
+  .stat { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+  .stat img { width: 30px; height: 30px; object-fit: contain; }
+  .stat span { display: inline-block; }
+  .stat span.pop { animation: pop .28s ease; }
+  @keyframes pop { 50% { transform: scale(1.35); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) scale(.96); } }
+  .overlay.show h2, .overlay.show p { animation: rise .35s ease both; }
+  .stage { position: relative; line-height: 0; }
+  canvas { width: 100%; display: block; border-radius: 0 0 8px 8px; touch-action: none; outline: none; }
   .overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 14px;
-    line-height: 1.3;
-    text-align: center;
-    color: #fff;
-    background: rgba(30, 55, 15, .45);
-    border-radius: 0 0 8px 8px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .25s ease;
-    overflow-y: auto;
-    padding: 14px;
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px; line-height: 1.3; text-align: center; color: #fff;
+    background: rgba(30, 55, 15, .45); border-radius: 0 0 8px 8px;
+    opacity: 0; pointer-events: none; transition: opacity .25s ease;
   }
-
-  .overlay.show {
-    opacity: 1;
-  }
-
-  .overlay > * {
-    flex: none;
-  }
-
-  .overlay [hidden] {
-    display: none !important;
-  }
-
-  #ovTitle {
-    margin-top: auto;
-  }
-
-  #ovBtn {
-    margin-bottom: auto;
-  }
-
-  .overlay h2 {
-    margin: 0;
-    font-size: clamp(24px, 6vw, 40px);
-    font-weight: 700;
-  }
-
-  .overlay p {
-    margin: 0;
-    font-size: clamp(14px, 3.2vw, 18px);
-    opacity: .92;
-  }
-
+  .overlay.show { opacity: 1; }
+  .overlay h2 { margin: 0; font-size: clamp(24px, 6vw, 40px); font-weight: 700; }
+  .overlay p { margin: 0; font-size: clamp(14px, 3.2vw, 18px); opacity: .92; }
   .overlay button {
-    pointer-events: none;
-    font: inherit;
-    font-weight: 700;
-    font-size: clamp(16px, 3.6vw, 20px);
-    color: #fff;
-    background: #4e7cf6;
-    border: 0;
-    border-radius: 28px;
-    padding: 12px 34px;
-    cursor: pointer;
-    box-shadow: 0 3px 0 #2f55c4;
-    transition: transform .1s ease;
+    pointer-events: none; font: inherit; font-weight: 700; font-size: clamp(16px, 3.6vw, 20px);
+    color: #fff; background: #4e7cf6; border: 0; border-radius: 28px; padding: 12px 34px; cursor: pointer;
+    box-shadow: 0 3px 0 #2f55c4; transition: transform .1s ease;
   }
-
-  .overlay.show button {
-    pointer-events: auto;
+  .overlay.show button { pointer-events: auto; }
+  .overlay button:active { transform: translateY(2px); box-shadow: 0 1px 0 #2f55c4; }
+  .overlay button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .overlay { justify-content: flex-start; overflow-y: auto; padding: 14px; }
+  .overlay > * { flex: none; }
+  .overlay [hidden] { display: none !important; }
+  #ovTitle { margin-top: auto; }
+  #ovBtn { margin-bottom: auto; }
+  .overlay.show #settings { pointer-events: auto; }
+  #settings { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; font-size: 13px; }
+  #settings label { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  #settings select, #settings input {
+    font: inherit; font-size: 15px; padding: 6px 12px; border: 0; border-radius: 16px;
+    color: #1f2b1a; background: #fff; text-align: center;
   }
-
-  .overlay button:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 #2f55c4;
-  }
-
-  .overlay button:focus-visible {
-    outline: 3px solid #fff;
-    outline-offset: 3px;
-  }
-
-  #settings {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-    font-size: 13px;
-  }
-
-  #settings label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-
-  #settings select,
-  #settings input {
-    font: inherit;
-    font-size: 15px;
-    padding: 6px 12px;
-    border: 0;
-    border-radius: 16px;
-    color: #1f2b1a;
-    background: #fff;
-    text-align: center;
-  }
-
-  #settings input {
-    width: 70px;
-  }
-
-  #setBtn {
-    position: fixed;
-    top: calc(10px + env(safe-area-inset-top, 0px));
-    right: 10px;
-    z-index: 5;
-    font: inherit;
-    font-size: 14px;
-    font-weight: 700;
-    color: #fff;
-    background: var(--bar);
-    border: 0;
-    border-radius: 20px;
-    padding: 8px 14px;
-    cursor: pointer;
-    box-shadow: 0 2px 0 rgba(0,0,0,.2);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  #setBtn .ico {
-    width: 18px;
-    height: 18px;
-  }
-
-  #setModal {
-    position: fixed;
-    inset: 0;
-    z-index: 10;
-    background: rgba(20,40,10,.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-  }
-
-  #setModal[hidden] {
-    display: none;
-  }
-
-  #setCard {
-    background: var(--bar);
-    color: #fff;
-    border-radius: 12px;
-    width: min(420px, 100%);
-    max-height: 100%;
-    overflow-y: auto;
-    padding: 16px 18px;
-  }
-
-  #setHead {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  #setHead h2 {
-    margin: 0;
-    font-size: 22px;
-  }
-
-  #setClose {
-    font: inherit;
-    font-size: 22px;
-    color: #fff;
-    background: none;
-    border: 0;
-    cursor: pointer;
-  }
-
-  #setGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 14px;
-    margin-top: 14px;
-  }
-
-  #setGrid label {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    font-size: 13px;
-  }
-
-  #setGrid select {
-    font: inherit;
-    font-size: 15px;
-    padding: 8px 12px;
-    border: 0;
-    border-radius: 16px;
-    color: #1f2b1a;
-    background: #fff;
-  }
-
-  #setGrid input[type=color] {
-    width: 100%;
-    height: 38px;
-    border: 0;
-    border-radius: 16px;
-    padding: 3px 6px;
-    background: #fff;
-    cursor: pointer;
-  }
-
-  #setReset {
-    font: inherit;
-    font-weight: 700;
-    font-size: 14px;
-    color: #fff;
-    background: #4e7cf6;
-    border: 0;
-    border-radius: 20px;
-    padding: 8px 16px;
-    margin-top: 16px;
-    cursor: pointer;
-    box-shadow: 0 2px 0 #2f55c4;
-  }
-
-  #setNote {
-    margin: 12px 0 0;
-    font-size: 12px;
-    opacity: .85;
-    line-height: 1.35;
-  }
-
-  .perf .overlay {
-    transition: none;
-  }
-
-  .perf .overlay.show h2,
-  .perf .overlay.show p,
-  .perf .stat span.pop {
-    animation: none;
-  }
+  #settings input { width: 70px; }
+  #setBtn { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 10px; z-index: 5; font: inherit; font-size: 14px; font-weight: 700;
+    color: #fff; background: var(--bar); border: 0; border-radius: 20px; padding: 8px 14px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  #setBtn img { width: 18px; height: 18px; object-fit: contain; vertical-align: -3px; }
+  #setBtn { left: auto; right: 10px; }
+  #setModal { position: fixed; inset: 0; z-index: 10; background: rgba(20,40,10,.6); display: flex; align-items: center; justify-content: center; padding: 12px; }
+  #setModal[hidden] { display: none; }
+  #setCard { background: var(--bar); color: #fff; border-radius: 12px; width: min(780px, 100%); max-height: 100%; overflow-y: auto; padding: 16px 18px; }
+  #setCard { width: min(420px, 100%); }
+  #setHead { display: flex; justify-content: space-between; align-items: center; }
+  #setHead h2 { margin: 0; font-size: 22px; }
+  #setClose { font: inherit; font-size: 22px; color: #fff; background: none; border: 0; cursor: pointer; }
+  #setGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 14px; }
+  #setGrid label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+  #setGrid select { font: inherit; font-size: 15px; padding: 8px 12px; border: 0; border-radius: 16px; color: #1f2b1a; background: #fff; }
+  #setGrid input[type=color] { width: 100%; height: 38px; border: 0; border-radius: 16px; padding: 3px 6px; background: #fff; cursor: pointer; }
+  #setReset { font: inherit; font-weight: 700; font-size: 14px; color: #fff; background: #4e7cf6; border: 0; border-radius: 20px; padding: 8px 16px; margin-top: 16px; cursor: pointer; box-shadow: 0 2px 0 #2f55c4; }
+  #setNote { margin: 12px 0 0; font-size: 12px; opacity: .85; line-height: 1.35; }
+  #speedBox { position: fixed; left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 10px 6px; background: var(--bar); color: #fff; border-radius: 20px; font-size: 12px; font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  #speedWrap { position: relative; width: 28px; height: 150px; }
+  #speedSlider { position: absolute; left: 50%; top: 50%; width: 150px; height: 28px; margin: 0; transform: translate(-50%, -50%) rotate(-90deg); accent-color: #4e7cf6; cursor: pointer; }
+  /* Performance Mode: drop CSS animations/transitions */
+  .perf .overlay { transition: none; }
+  .perf .overlay.show h2, .perf .overlay.show p, .perf .stat span.pop { animation: none; }
 </style>
 </head>
-
 <body>
-
-<!-- BOT SPEED SLIDER -->
-<div id="botSpeedPanel" aria-label="Bot speed controls">
-  <div class="speed-title">BOT SPEED</div>
-
-  <input
-    id="botSpeed"
-    type="range"
-    min="1"
-    max="100"
-    value="50"
-    step="1"
-    aria-label="Bot speed"
-  >
-
-  <div id="botSpeedValue">50%</div>
-  <div class="speed-label">Slow<br>Fast</div>
-</div>
-
-<button id="setBtn" type="button">
-  <i class="ico" data-icon="cog"></i>
-  Settings
-</button>
-
+<button id="setBtn" type="button"><img src="cog.png" alt=""> Settings</button>
+<div id="speedBox" title="Snake speed"><span>Fast</span><div id="speedWrap"><input id="speedSlider" type="range" min="0" max="100" step="1" value="38" aria-label="Snake speed"></div><span>Slow</span></div>
 <div id="setModal" hidden>
   <div id="setCard" role="dialog" aria-label="Settings">
-
-    <div id="setHead">
-      <h2>Settings</h2>
-      <button id="setClose" type="button" aria-label="Close">✕</button>
-    </div>
-
+    <div id="setHead"><h2>Settings</h2><button id="setClose" type="button" aria-label="Close">✕</button></div>
     <div id="setGrid">
-      <label>
-        Bot autopilot
-        <select id="setBot">
-          <option value="on">On</option>
-          <option value="off">Off</option>
-        </select>
-      </label>
-
-      <label>
-        Snake color
-        <input id="setSnake" type="color" value="#4e7cf6">
-      </label>
-
-      <label>
-        Map color
-        <input id="setMapColor" type="color" value="#aad751">
-      </label>
-
-      <label>
-        Performance mode
-        <select id="setPerf">
-          <option value="off">Off</option>
-          <option value="on">On</option>
-        </select>
-      </label>
-
-      <label>
-        Sound
-        <select id="setSound">
-          <option value="on">On</option>
-          <option value="off">Off</option>
-        </select>
-      </label>
+      <label>Snake color <input id="setSnake" type="color" value="#4e7cf6"></label>
+      <label>Map color <input id="setMapColor" type="color" value="#aad751"></label>
+      <label>Performance mode <select id="setPerf"><option value="off">Off</option><option value="on">On</option></select></label>
+      <label>Sound <select id="setSound"><option value="on">On</option><option value="off">Off</option></select></label>
+      <label>Auto replay <select id="setAuto"><option value="off">Off</option><option value="on">On</option></select></label>
     </div>
-
     <button id="setReset" type="button">Reset colors</button>
-
-    <p id="setNote">
-      Press B any time to switch the bot on or off.
-      Use the BOT SPEED slider on the left to change how fast the bot moves.
-      Performance mode removes shadows, particles, screen shake and animations.
-    </p>
+    <p id="setNote">Performance mode removes shadows, particles, screen shake and animations, and draws at 1x resolution.</p>
   </div>
 </div>
-
 <div class="game">
-
   <div class="bar">
-
     <div class="stat" title="Score">
-      <i class="ico" data-icon="apple"></i>
+      <img src="apple.png" alt="">
       <span id="score">0</span>
     </div>
-
     <div class="stat" title="Best">
-      <i class="ico" data-icon="trophy"></i>
+      <img src="trophy.png" alt="">
       <span id="best">0</span>
     </div>
-
   </div>
-
   <div class="stage" id="stage">
-
-    <canvas
-      id="game"
-      tabindex="0"
-      aria-label="Snake game board"
-    ></canvas>
-
+    <canvas id="game" tabindex="0" aria-label="Snake game board"></canvas>
     <div class="overlay show" id="overlay">
-
       <h2 id="ovTitle">Snake</h2>
-
-      <p id="ovSub">Bot is playing</p>
-
+      <p id="ovSub">Press an arrow key or swipe to start</p>
       <div id="settings">
-
-        <label>
-          Speed
-          <select id="setSpeed">
-            <option value="slow">Slow</option>
-            <option value="normal">Normal</option>
-            <option value="fast">Fast</option>
-          </select>
-        </label>
-
-        <label>
-          Map
-          <select id="setMap">
-            <option value="small">Small</option>
-            <option value="standard">Standard</option>
-            <option value="large">Large</option>
-            <option value="infinite">Infinite</option>
-          </select>
-        </label>
-
-        <label>
-          Apples
-          <input id="setApples" type="number" min="1" value="1">
-        </label>
-
+        <label>Speed <select id="setSpeed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option></select></label>
+        <label>Map <select id="setMap"><option value="small">Small</option><option value="standard">Standard</option><option value="large">Large</option><option value="infinite">Infinite</option></select></label>
+        <label>Apples <input id="setApples" type="number" min="1" value="1"></label>
       </div>
-
       <button id="ovBtn" type="button">Play</button>
-
     </div>
   </div>
 </div>
@@ -643,3340 +142,521 @@
 <script>
 (() => {
   "use strict";
+  let COLS = 17, ROWS = 15, LW, LH; const CELL = 40;           // logical units
 
-  let COLS = 17,
-      ROWS = 15,
-      LW,
-      LH;
-
-  const CELL = 40;
-
-  /* =========================================================
-     SVG ICONS
-  ========================================================= */
-
-  const ICONS = {
-
-    apple: `
-      <svg xmlns="http://www.w3.org/2000/svg"
-           viewBox="0 0 64 64"
-           width="64"
-           height="64">
-
-        <path
-          d="M32 20c-6-5-20-3-20 14
-             0 13 9 24 16 24
-             3 0 3-1 4-1s1 1 4 1
-             c7 0 16-11 16-24
-             0-17-14-19-20-14z"
-          fill="#e7471d"
-        />
-
-        <path
-          d="M32 20c0-6 2-11 6-14"
-          stroke="#6b4423"
-          stroke-width="3"
-          fill="none"
-          stroke-linecap="round"
-        />
-
-        <path
-          d="M36 14c4-6 12-6 15-3
-             -3 5-9 7-15 3z"
-          fill="#58a832"
-        />
-
-        <ellipse
-          cx="22"
-          cy="33"
-          rx="3.5"
-          ry="7"
-          fill="#fff"
-          opacity=".3"
-          transform="rotate(20 22 33)"
-        />
-      </svg>
-    `,
-
-    trophy: `
-      <svg xmlns="http://www.w3.org/2000/svg"
-           viewBox="0 0 64 64"
-           width="64"
-           height="64">
-
-        <path
-          d="M18 8h28v14c0 10-6 16-14 16S18 32 18 22z"
-          fill="#f5c518"
-        />
-
-        <path
-          d="M18 12H8c0 10 4 15 11 16
-             M46 12h10c0 10-4 15-11 16"
-          fill="none"
-          stroke="#f5c518"
-          stroke-width="4"
-          stroke-linejoin="round"
-        />
-
-        <rect x="28" y="38" width="8" height="10" fill="#e0a800"/>
-        <rect x="20" y="48" width="24" height="8" rx="2" fill="#f5c518"/>
-      </svg>
-    `,
-
-    cog: `
-      <svg xmlns="http://www.w3.org/2000/svg"
-           viewBox="0 0 64 64"
-           width="64"
-           height="64">
-
-        <circle
-          cx="32"
-          cy="32"
-          r="24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="8"
-          stroke-dasharray="4.71 4.71"
-        />
-
-        <path
-          fill="currentColor"
-          fill-rule="evenodd"
-          d="M32 12a20 20 0 1 0 0 40
-             a20 20 0 1 0 0-40z
-             M32 24a8 8 0 1 1 0 16
-             a8 8 0 1 1 0-16z"
-        />
-      </svg>
-    `
-  };
-
-  document.querySelectorAll("[data-icon]").forEach(el => {
-    el.innerHTML = ICONS[el.dataset.icon];
-  });
-
-  const svgUrl = s =>
-    "data:image/svg+xml;charset=utf-8," +
-    encodeURIComponent(s);
-
-  const fav = document.createElement("link");
-  fav.rel = "icon";
-  fav.type = "image/svg+xml";
-  fav.href = svgUrl(ICONS.apple);
-  document.head.appendChild(fav);
-
-  /* =========================================================
-     CONFIGURATION
-  ========================================================= */
-
-  const SPEEDS = {
-    slow: 179.55,
-    normal: 1000 / 7.41,
-    fast: 89.1
-  };
-
-  const MAPS = {
-    small: [9, 10],
-    standard: [15, 17],
-    large: [21, 24],
-    infinite: [17, 15]
-  };
-
-  const DEF_SNAKE = "#4e7cf6";
-  const DEF_MAP = "#aad751";
-
-  let cfg = {
-    speed: "normal",
-    map: "standard",
-    apples: 1,
-    perf: "off",
-    sound: "on",
-    bot: "on",
-
-    snakeColor: DEF_SNAKE,
-    mapColor: DEF_MAP,
-
-    /* NEW BOT SPEED SETTING */
-    botSpeed: 50
-  };
-
-  try {
-    Object.assign(
-      cfg,
-      JSON.parse(localStorage.getItem("snake-cfg"))
-    );
-  } catch (e) {}
-
-  if (!SPEEDS[cfg.speed])
-    cfg.speed = "normal";
-
-  if (!MAPS[cfg.map])
-    cfg.map = "standard";
-
-  if (cfg.perf !== "on")
-    cfg.perf = "off";
-
-  if (cfg.sound !== "off")
-    cfg.sound = "on";
-
-  if (cfg.bot !== "off")
-    cfg.bot = "on";
-
-  if (!/^#[0-9a-f]{6}$/i.test(cfg.snakeColor))
-    cfg.snakeColor = DEF_SNAKE;
-
-  if (!/^#[0-9a-f]{6}$/i.test(cfg.mapColor))
-    cfg.mapColor = DEF_MAP;
-
-  /* Make sure old saves get a valid bot speed */
-  cfg.botSpeed = Number(cfg.botSpeed);
-
-  if (
-    !Number.isFinite(cfg.botSpeed) ||
-    cfg.botSpeed < 1 ||
-    cfg.botSpeed > 100
-  ) {
-    cfg.botSpeed = 50;
-  }
-
-  cfg.botSpeed = Math.round(cfg.botSpeed);
-
-  const saveCfg = () => {
-    try {
-      localStorage.setItem(
-        "snake-cfg",
-        JSON.stringify(cfg)
-      );
-    } catch (e) {}
-  };
-
-  let INF = false,
-      PERF = false,
-      SNAKE = DEF_SNAKE,
-      tileA = DEF_MAP,
-      tileB = "#a2d149";
-
-  /* =========================================================
-     ELEMENTS
-  ========================================================= */
+  const SPEEDS = { slow: 179.55, normal: 1000 / 7.41, fast: 89.1 };     // ms per square (5.57 / 7.41 / 11.22 squares per second)
+  const MAPS = { small: [9, 10], standard: [15, 17], large: [21, 24], infinite: [17, 15] };  // [columns, rows]
+  const DEF_SNAKE = "#4e7cf6", DEF_MAP = "#aad751";
+  let cfg = { speed: "normal", map: "standard", apples: 1, perf: "off", sound: "on", snakeColor: DEF_SNAKE, mapColor: DEF_MAP, aiSpeed: null, auto: "off" };
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem("snake-cfg"))); } catch (e) {}
+  if (!SPEEDS[cfg.speed]) cfg.speed = "normal";
+  if (!MAPS[cfg.map]) cfg.map = "standard";
+  function presetV(s) { return Math.round(100 * Math.log((1000 / SPEEDS[s]) / 2) / Math.log(30)); }   // preset -> slider position
+  const speedDelay = () => 1000 / (2 * Math.pow(30, cfg.aiSpeed / 100));                              // slider 0..100 = 2..60 squares/sec
+  if (typeof cfg.aiSpeed !== "number" || !(cfg.aiSpeed >= 0 && cfg.aiSpeed <= 100)) cfg.aiSpeed = presetV(cfg.speed);
+  if (cfg.perf !== "on") cfg.perf = "off";
+  if (cfg.sound !== "off") cfg.sound = "on";
+  if (cfg.auto !== "on") cfg.auto = "off";
+  if (!/^#[0-9a-f]{6}$/i.test(cfg.snakeColor)) cfg.snakeColor = DEF_SNAKE;
+  if (!/^#[0-9a-f]{6}$/i.test(cfg.mapColor)) cfg.mapColor = DEF_MAP;
+  const saveCfg = () => { try { localStorage.setItem("snake-cfg", JSON.stringify(cfg)); } catch (e) {} };
+  let INF = false, PERF = false, SNAKE = DEF_SNAKE, tileA = DEF_MAP, tileB = "#a2d149", curMode = "standard-normal";    // curMode = leaderboard for the run being played
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const scoreEl = $("score"), bestEl = $("best"), overlay = $("overlay");
+  const ovTitle = $("ovTitle"), ovSub = $("ovSub"), ovBtn = $("ovBtn");
+  const settingsEl = $("settings"), setSpeed = $("setSpeed"), setMap = $("setMap"), setApples = $("setApples");
+  const setSnake = $("setSnake"), setMapColor = $("setMapColor"), setPerf = $("setPerf"), setSound = $("setSound"), setAuto = $("setAuto");
+  const speedSlider = $("speedSlider");
+  speedSlider.addEventListener("input", () => { cfg.aiSpeed = +speedSlider.value; delay = speedDelay(); saveCfg(); });
+  speedSlider.addEventListener("change", () => speedSlider.blur());
 
-  const $ = id =>
-    document.getElementById(id);
-
-  const scoreEl = $("score");
-  const bestEl = $("best");
-
-  const overlay = $("overlay");
-  const ovTitle = $("ovTitle");
-  const ovSub = $("ovSub");
-  const ovBtn = $("ovBtn");
-
-  const settingsEl = $("settings");
-
-  const setSpeed = $("setSpeed");
-  const setMap = $("setMap");
-  const setApples = $("setApples");
-
-  const setSnake = $("setSnake");
-  const setMapColor = $("setMapColor");
-  const setPerf = $("setPerf");
-  const setSound = $("setSound");
-  const setBot = $("setBot");
-
-  /* NEW SLIDER ELEMENTS */
-  const botSpeedSlider = $("botSpeed");
-  const botSpeedValue = $("botSpeedValue");
-
-  /* =========================================================
-     BOT SPEED
-  ========================================================= */
-
-  function updateBotSpeedUI() {
-
-    const value = Math.round(
-      Number(botSpeedSlider.value)
-    );
-
-    botSpeedValue.textContent =
-      value + "%";
-
-    /*
-      1% = extremely slow
-      50% = normal
-      100% = extremely fast
-
-      We convert the slider into a multiplier.
-
-      Higher slider = smaller delay = faster bot.
-    */
-
-    saveCfg();
-  }
-
-  botSpeedSlider.value = cfg.botSpeed;
-  updateBotSpeedUI();
-
-  botSpeedSlider.addEventListener("input", () => {
-
-    cfg.botSpeed =
-      Number(botSpeedSlider.value);
-
-    botSpeedValue.textContent =
-      cfg.botSpeed + "%";
-
-    saveCfg();
-  });
-
-  botSpeedSlider.addEventListener("change", () => {
-    botSpeedSlider.blur();
-  });
-
-  /*
-    Converts the bot speed slider to the actual
-    delay used by the game.
-
-    1%   -> very slow
-    50%  -> approximately normal
-    100% -> very fast
-  */
-  function getBotDelay() {
-
-    const speed =
-      Math.max(
-        1,
-        Math.min(
-          100,
-          Number(cfg.botSpeed) || 50
-        )
-      );
-
-    /*
-      Exponential scaling feels much better
-      than simply multiplying the delay.
-    */
-
-    const minDelay = 35;
-    const maxDelay = 700;
-
-    const t = (speed - 1) / 99;
-
-    return maxDelay *
-      Math.pow(
-        minDelay / maxDelay,
-        t
-      );
-  }
-
-  /* =========================================================
-     DIRECTIONS
-  ========================================================= */
-
-  const DIRS = {
-
-    up: {
-      x: 0,
-      y: -1
-    },
-
-    down: {
-      x: 0,
-      y: 1
-    },
-
-    left: {
-      x: -1,
-      y: 0
-    },
-
-    right: {
-      x: 1,
-      y: 0
-    }
-
-  };
-
-  const KEYMAP = {
-
-    ArrowUp: "up",
-    ArrowDown: "down",
-    ArrowLeft: "left",
-    ArrowRight: "right",
-
-    w: "up",
-    s: "down",
-    a: "left",
-    d: "right",
-
-    W: "up",
-    S: "down",
-    A: "left",
-    D: "right"
-
-  };
-
-  /* =========================================================
-     GAME STATE
-  ========================================================= */
+  const DIRS = { up: {x:0,y:-1}, down: {x:0,y:1}, left: {x:-1,y:0}, right: {x:1,y:0} };
+  const KEYMAP = { ArrowUp:"up", ArrowDown:"down", ArrowLeft:"left", ArrowRight:"right",
+                   w:"up", s:"down", a:"left", d:"right", W:"up", S:"down", A:"left", D:"right" };
 
   let best = 0;
-
-  try {
-    best =
-      parseInt(
-        localStorage.getItem("snake-best"),
-        10
-      ) || 0;
-  } catch (e) {}
-
+  try { best = parseInt(localStorage.getItem("snake-best"), 10) || 0; } catch (e) {}
   bestEl.textContent = best;
 
-  let snake,
-      prev,
-      dir,
-      queue,
-      score,
-      delay,
-      state,
-      acc,
-      last,
-      deathAt,
-      overTimer,
-      waiting = false,
-      cdT = 0,
-      foods = [],
-      ang = 0,
-      shake = 0,
-      lastFrame = 0,
-      particles = [],
-      wallSeed = 0,
-      runId = 0;
+  let snake, prev, dir, queue, food, foodBorn, score, delay, state, acc, last, deathAt, overTimer, grew, waiting = false, cdT = 0, foods = [], ang = 0, shake = 0, lastFrame = 0, particles = [], wallSeed = 0;
+  // state: ready | running | paused | countdown | over | won
 
-  let botOn =
-    cfg.bot === "on";
+  let runId = 0;
 
-  /*
-    state:
-    ready
-    running
-    paused
-    countdown
-    over
-    won
-  */
-
-  /* =========================================================
-     WALLS
-  ========================================================= */
-
+  /* ---------- walls (infinite mode only): procedural, so they appear as you explore ---------- */
   const hash = (x, y, s) => {
-
-    let h =
-      Math.imul(
-        x | 0,
-        374761393
-      ) ^
-      Math.imul(
-        y | 0,
-        668265263
-      ) ^
-      Math.imul(
-        s | 0,
-        1274126177
-      );
-
-    h =
-      Math.imul(
-        h ^ (h >>> 13),
-        1274126177
-      );
-
-    return (
-      (h ^ (h >>> 16)) >>> 0
-    ) / 4294967296;
+    let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(s | 0, 1274126177);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   };
-
   function isWall(x, y) {
-
-    if (!INF)
-      return false;
-
-    if (
-      x > -4 &&
-      x < 16 &&
-      Math.abs(
-        y - Math.floor(ROWS / 2)
-      ) < 4
-    ) {
-      return false;
-    }
-
-    const v =
-      hash(
-        x,
-        y,
-        wallSeed
-      );
-
-    return (
-      v < 0.015 ||
-      (
-        v < 0.5 &&
-        hash(
-          x >> 1,
-          y >> 1,
-          wallSeed + 7
-        ) < 0.07
-      )
-    );
+    if (!INF) return false;
+    if (x > -4 && x < 16 && Math.abs(y - Math.floor(ROWS / 2)) < 4) return false;      // safe zone around the start
+    const v = hash(x, y, wallSeed);
+    return v < 0.015 || (v < 0.5 && hash(x >> 1, y >> 1, wallSeed + 7) < 0.07);        // lone tiles + small clumps
   }
 
-  /* =========================================================
-     BOT
-  ========================================================= */
-
-  function setBotOn(on) {
-
-    botOn = on;
-
-    cfg.bot =
-      on ? "on" : "off";
-
-    setBot.value =
-      cfg.bot;
-
-    saveCfg();
-
-    if (on) {
-
-      waiting = false;
-
-      if (queue)
-        queue.length = 0;
-
-      if (
-        state === "ready" ||
-        state === "over" ||
-        state === "won"
-      ) {
-        startOrToggle();
-      }
-
-    } else if (
-      state === "running"
-    ) {
-
-      waiting = true;
-    }
-
-    if (state === "ready") {
-
-      ovSub.textContent =
-        botOn
-          ? "Bot is playing · press B to take over"
-          : "Press an arrow key or swipe to start";
-    }
-  }
-
-  setBot.addEventListener(
-    "change",
-    () => {
-      setBotOn(
-        setBot.value === "on"
-      );
-
-      setBot.blur();
-    }
-  );
-
-  function botPick() {
-
-    const h =
-      snake[0];
-
-    const keys =
-      Object.keys(DIRS);
-
-    const key =
-      (x, y) =>
-        x + "," + y;
-
-    const inb =
-      (x, y) =>
-        INF
-          ? (
-              Math.abs(x - h.x) <= 14 &&
-              Math.abs(y - h.y) <= 12
-            )
-          : (
-              x >= 0 &&
-              y >= 0 &&
-              x < COLS &&
-              y < ROWS
-            );
-
-    const bfs =
-      (sx, sy, bl) => {
-
-        const par =
-          new Map([
-            [
-              key(sx, sy),
-              null
-            ]
-          ]);
-
-        const q = [
-          {
-            x: sx,
-            y: sy
-          }
-        ];
-
-        for (
-          let i = 0;
-          i < q.length;
-          i++
-        ) {
-
-          const c =
-            q[i];
-
-          for (
-            const k of keys
-          ) {
-
-            const nx =
-              c.x +
-              DIRS[k].x;
-
-            const ny =
-              c.y +
-              DIRS[k].y;
-
-            const nk =
-              key(nx, ny);
-
-            if (
-              par.has(nk) ||
-              !inb(nx, ny) ||
-              isWall(nx, ny) ||
-              bl.has(nk)
-            ) {
-              continue;
-            }
-
-            par.set(
-              nk,
-              c
-            );
-
-            q.push({
-              x: nx,
-              y: ny
-            });
-          }
-        }
-
-        return par;
-      };
-
-    const pathTo =
-      (par, t) => {
-
-        if (
-          !par.has(
-            key(t.x, t.y)
-          )
-        ) {
-          return null;
-        }
-
-        const p = [];
-        let c = t;
-
-        while (
-          par.get(
-            key(c.x, c.y)
-          )
-        ) {
-
-          p.push({
-            x: c.x,
-            y: c.y
-          });
-
-          c =
-            par.get(
-              key(c.x, c.y)
-            );
-        }
-
-        return p.reverse();
-      };
-
-    const stepDir =
-      p =>
-        keys.find(
-          k =>
-            DIRS[k].x ===
-              p[0].x - h.x &&
-            DIRS[k].y ===
-              p[0].y - h.y
-        );
-
-    const bodyBlock =
-      new Set(
-        snake
-          .slice(0, -1)
-          .map(
-            s =>
-              key(
-                s.x,
-                s.y
-              )
-          )
-      );
-
-    const par =
-      bfs(
-        h.x,
-        h.y,
-        bodyBlock
-      );
-
-    const safe =
-      p => {
-
-        const vs =
-          p
-            .slice()
-            .reverse()
-            .concat(snake)
-            .slice(
-              0,
-              snake.length + 1
-            );
-
-        const tail =
-          vs[vs.length - 1];
-
-        const bl =
-          new Set(
-            vs
-              .slice(0, -1)
-              .map(
-                s =>
-                  key(
-                    s.x,
-                    s.y
-                  )
-              )
-          );
-
-        return bfs(
-          vs[0].x,
-          vs[0].y,
-          bl
-        ).has(
-          key(
-            tail.x,
-            tail.y
-          )
-        );
-      };
-
-    const paths =
-      foods
-        .map(f =>
-          pathTo(
-            par,
-            f
-          )
-        )
-        .filter(
-          p =>
-            p &&
-            p.length
-        )
-        .sort(
-          (a, b) =>
-            a.length -
-            b.length
-        );
-
-    for (
-      const p of paths
-    ) {
-
-      if (safe(p))
-        return stepDir(p);
-    }
-
-    const tp =
-      pathTo(
-        par,
-        snake[
-          snake.length - 1
-        ]
-      );
-
-    if (
-      tp &&
-      tp.length
-    ) {
-      return stepDir(tp);
-    }
-
-    let bestK = null;
-    let bestN = -1;
-
-    for (
-      const k of keys
-    ) {
-
-      const x =
-        h.x +
-        DIRS[k].x;
-
-      const y =
-        h.y +
-        DIRS[k].y;
-
-      if (
-        !inb(x, y) ||
-        isWall(x, y) ||
-        bodyBlock.has(
-          key(x, y)
-        )
-      ) {
-        continue;
-      }
-
-      const n =
-        bfs(
-          x,
-          y,
-          new Set([
-            ...bodyBlock,
-            key(h.x, h.y)
-          ])
-        ).size;
-
-      if (
-        n > bestN
-      ) {
-
-        bestN = n;
-        bestK = k;
-      }
-    }
-
-    return (
-      bestK ||
-      keys.find(
-        k =>
-          DIRS[k] === dir
-      )
-    );
-  }
-
-  /* =========================================================
-     THEME
-  ========================================================= */
-
+  /* ---------- theme (map color drives board + page + bar) ---------- */
   function mixc(hex, f) {
-
-    const n =
-      parseInt(
-        hex.slice(1),
-        16
-      );
-
-    return "#" +
-      [
-        n >> 16 & 255,
-        n >> 8 & 255,
-        n & 255
-      ]
-        .map(
-          v =>
-            Math.round(
-              v * f
-            )
-              .toString(16)
-              .padStart(2, "0")
-        )
-        .join("");
+    const n = parseInt(hex.slice(1), 16);
+    return "#" + [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => Math.round(v * f).toString(16).padStart(2, "0")).join("");
   }
-
   function applyTheme() {
-
-    const def =
-      cfg.mapColor.toLowerCase() ===
-      DEF_MAP;
-
-    const r =
-      document.documentElement.style;
-
-    tileA =
-      cfg.mapColor;
-
-    tileB =
-      def
-        ? "#a2d149"
-        : mixc(
-            cfg.mapColor,
-            .955
-          );
-
-    r.setProperty(
-      "--page",
-      def
-        ? "#578a34"
-        : mixc(
-            cfg.mapColor,
-            .62
-          )
-    );
-
-    r.setProperty(
-      "--bar",
-      def
-        ? "#4a752c"
-        : mixc(
-            cfg.mapColor,
-            .52
-          )
-    );
+    const def = cfg.mapColor.toLowerCase() === DEF_MAP, r = document.documentElement.style;
+    tileA = cfg.mapColor; tileB = def ? "#a2d149" : mixc(cfg.mapColor, .955);
+    r.setProperty("--page", def ? "#578a34" : mixc(cfg.mapColor, .62));
+    r.setProperty("--bar", def ? "#4a752c" : mixc(cfg.mapColor, .52));
   }
-
   function applyLook() {
-
-    PERF =
-      cfg.perf === "on";
-
-    document.body.classList.toggle(
-      "perf",
-      PERF
-    );
-
-    SNAKE =
-      cfg.snakeColor;
-
-    applyTheme();
-
-    setSnake.value =
-      cfg.snakeColor;
-
-    setMapColor.value =
-      cfg.mapColor;
-
-    setPerf.value =
-      cfg.perf;
-
-    setSound.value =
-      cfg.sound;
-
-    setBot.value =
-      cfg.bot;
-
-    botSpeedSlider.value =
-      cfg.botSpeed;
-
-    botSpeedValue.textContent =
-      cfg.botSpeed + "%";
+    PERF = cfg.perf === "on"; document.body.classList.toggle("perf", PERF);
+    SNAKE = cfg.snakeColor; applyTheme();
+    setSnake.value = cfg.snakeColor; setMapColor.value = cfg.mapColor; setPerf.value = cfg.perf; setSound.value = cfg.sound; setAuto.value = cfg.auto;
   }
 
-  /* =========================================================
-     SOUND + PARTICLES
-  ========================================================= */
-
-  let actx = null;
-
-  let muted =
-    cfg.sound === "off";
-
-  function beep(
-    f1,
-    f2,
-    dur,
-    type = "sine",
-    vol = .07
-  ) {
-
-    if (muted)
-      return;
-
+  /* ---------- polish: sound + particles ---------- */
+  let actx = null, muted = cfg.sound === "off";
+  function beep(f1, f2, dur, type = "sine", vol = .07) {
+    if (muted) return;
     try {
-
-      actx =
-        actx ||
-        new (
-          window.AudioContext ||
-          window.webkitAudioContext
-        )();
-
-      if (
-        actx.state ===
-        "suspended"
-      ) {
-        actx.resume();
-      }
-
-      const o =
-        actx.createOscillator();
-
-      const g =
-        actx.createGain();
-
-      const t =
-        actx.currentTime;
-
-      o.type =
-        type;
-
-      o.frequency.setValueAtTime(
-        f1,
-        t
-      );
-
-      o.frequency.exponentialRampToValueAtTime(
-        f2,
-        t + dur
-      );
-
-      g.gain.setValueAtTime(
-        vol,
-        t
-      );
-
-      g.gain.exponentialRampToValueAtTime(
-        0.0001,
-        t + dur
-      );
-
-      o.connect(g);
-      g.connect(
-        actx.destination
-      );
-
-      o.start(t);
-      o.stop(
-        t + dur
-      );
-
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+      o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
     } catch (e) {}
   }
-
   function burst(x, y) {
-
-    if (PERF)
-      return;
-
-    for (
-      let i = 0;
-      i < 14;
-      i++
-    ) {
-
-      const a =
-        Math.random() *
-        6.283;
-
-      const v =
-        70 +
-        Math.random() *
-        150;
-
-      particles.push({
-        x,
-        y,
-        vx:
-          Math.cos(a) * v,
-        vy:
-          Math.sin(a) * v,
-        life: 1
-      });
+    if (PERF) return;
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * 6.283, v = 70 + Math.random() * 150;
+      particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1 });
     }
-  }
-
-  /* =========================================================
-     RESIZE
-  ========================================================= */
-
-  function resize() {
-
-    const dpr =
-      PERF
-        ? 1
-        : (
-            window.devicePixelRatio ||
-            1
-          );
-
-    const w =
-      Math.round(
-        canvas.clientWidth *
-        dpr
-      );
-
-    canvas.width =
-      w;
-
-    canvas.height =
-      Math.round(
-        w *
-        LH /
-        LW
-      );
-
-    canvas.style.height =
-      "auto";
-
-    canvas.style.aspectRatio =
-      LW +
-      " / " +
-      LH;
-  }
-
-  window.addEventListener(
-    "resize",
-    resize
-  );
-
-  /* =========================================================
-     CONFIG
-  ========================================================= */
-
-  function applyConfig() {
-
-    [
-      COLS,
-      ROWS
-    ] =
-      MAPS[cfg.map];
-
-    INF =
-      cfg.map === "infinite";
-
-    if (
-      !INF &&
-      window.matchMedia(
-        "(pointer: fine)"
-      ).matches
-    ) {
-
-      [
-        COLS,
-        ROWS
-      ] = [
-        ROWS,
-        COLS
-      ];
-    }
-
-    LW =
-      COLS *
-      CELL;
-
-    LH =
-      ROWS *
-      CELL;
-
-    cfg.apples =
-      Math.max(
-        1,
-        Math.min(
-          cfg.apples | 0 || 1,
-          COLS * ROWS - 3
-        )
-      );
-
-    document.documentElement.style.setProperty(
-      "--ar",
-      COLS / ROWS
-    );
-
-    document.documentElement.style.setProperty(
-      "--maxw",
-      COLS * 48 + "px"
-    );
-
-    setApples.max =
-      COLS * ROWS - 3;
-
-    setApples.value =
-      cfg.apples;
-
-    setSpeed.value =
-      cfg.speed;
-
-    setMap.value =
-      cfg.map;
-
-    applyLook();
-
-    resize();
-  }
-
-  for (
-    const el of [
-      setSpeed,
-      setMap,
-      setApples
-    ]
-  ) {
-
-    el.addEventListener(
-      "change",
-      () => {
-
-        cfg.speed =
-          setSpeed.value;
-
-        cfg.map =
-          setMap.value;
-
-        cfg.apples =
-          parseInt(
-            setApples.value,
-            10
-          ) || 1;
-
-        saveCfg();
-
-        el.blur();
-
-        if (
-          state === "ready"
-        ) {
-          reset();
-        }
-      }
-    );
-  }
-
-  /* =========================================================
-     SETTINGS MODAL
-  ========================================================= */
-
-  const setModal =
-    $("setModal");
-
-  let setOpen = false;
-
-  function closeSettings() {
-
-    setOpen = false;
-    setModal.hidden = true;
-  }
-
-  function openSettings() {
-
-    setOpen = true;
-
-    if (
-      state === "running"
-    ) {
-      startOrToggle();
-    }
-
-    setModal.hidden = false;
-  }
-
-  $("setBtn")
-    .addEventListener(
-      "click",
-      e => {
-
-        e.currentTarget.blur();
-        openSettings();
-      }
-    );
-
-  $("setClose")
-    .addEventListener(
-      "click",
-      closeSettings
-    );
-
-  setModal.addEventListener(
-    "click",
-    e => {
-
-      if (
-        e.target ===
-        setModal
-      ) {
-        closeSettings();
-      }
-    }
-  );
-
-  setSnake.addEventListener(
-    "input",
-    () => {
-
-      cfg.snakeColor =
-        setSnake.value;
-
-      applyLook();
-      saveCfg();
-    }
-  );
-
-  setMapColor.addEventListener(
-    "input",
-    () => {
-
-      cfg.mapColor =
-        setMapColor.value;
-
-      applyLook();
-      saveCfg();
-    }
-  );
-
-  setPerf.addEventListener(
-    "change",
-    () => {
-
-      cfg.perf =
-        setPerf.value;
-
-      applyLook();
-      resize();
-      saveCfg();
-
-      setPerf.blur();
-    }
-  );
-
-  setSound.addEventListener(
-    "change",
-    () => {
-
-      cfg.sound =
-        setSound.value;
-
-      muted =
-        cfg.sound === "off";
-
-      saveCfg();
-
-      setSound.blur();
-    }
-  );
-
-  $("setReset").addEventListener(
-    "click",
-    e => {
-
-      cfg.snakeColor =
-        DEF_SNAKE;
-
-      cfg.mapColor =
-        DEF_MAP;
-
-      applyLook();
-      saveCfg();
-
-      e.currentTarget.blur();
-    }
-  );
-
-  /* =========================================================
-     RESET
-  ========================================================= */
-
-  function reset() {
-
-    clearTimeout(
-      overTimer
-    );
-
-    const id =
-      ++runId;
-
-    applyConfig();
-
-    wallSeed =
-      (
-        Math.random() *
-        2147483647
-      ) | 0;
-
-    const cy =
-      Math.floor(
-        ROWS / 2
-      );
-
-    snake = [
-      {
-        x: 5,
-        y: cy
-      },
-      {
-        x: 4,
-        y: cy
-      },
-      {
-        x: 3,
-        y: cy
-      }
-    ];
-
-    prev =
-      snake.map(
-        s => ({
-          ...s
-        })
-      );
-
-    dir =
-      DIRS.right;
-
-    ang = 0;
-    shake = 0;
-    particles = [];
-    queue = [];
-    score = 0;
-
-    delay =
-      SPEEDS[cfg.speed];
-
-    acc = 0;
-
-    state = "ready";
-
-    scoreEl.textContent =
-      0;
-
-    foods = [];
-
-    for (
-      let i = 0;
-      i < cfg.apples;
-      i++
-    ) {
-      placeFood();
-    }
-
-    showOverlay(
-      "Snake",
-      botOn
-        ? "Bot is playing · press B to take over"
-        : "Press an arrow key or swipe to start",
-      "Play"
-    );
-
-    if (botOn) {
-
-      setTimeout(
-        () => {
-
-          if (
-            id === runId &&
-            botOn &&
-            state === "ready"
-          ) {
-            startOrToggle();
-          }
-
-        },
-        800
-      );
-    }
-  }
-
-  /* =========================================================
-     FOOD
-  ========================================================= */
-
-  function placeFood() {
-
-    const taken =
-      new Set(
-        snake
-          .concat(foods)
-          .map(
-            c =>
-              c.x +
-              "," +
-              c.y
-          )
-      );
-
-    const free = [];
-
-    const x0 =
-      INF
-        ? snake[0].x - 8
-        : 0;
-
-    const y0 =
-      INF
-        ? snake[0].y - 7
-        : 0;
-
-    for (
-      let y = y0;
-      y < y0 + ROWS;
-      y++
-    ) {
-
-      for (
-        let x = x0;
-        x < x0 + COLS;
-        x++
-      ) {
-
-        if (
-          !taken.has(
-            x + "," + y
-          ) &&
-          !isWall(x, y)
-        ) {
-
-          free.push({
-            x,
-            y
-          });
-        }
-      }
-    }
-
-    if (free.length) {
-
-      const c =
-        free[
-          Math.floor(
-            Math.random() *
-            free.length
-          )
-        ];
-
-      foods.push({
-        x: c.x,
-        y: c.y,
-        born:
-          performance.now()
-      });
-    }
-  }
-
-  /* =========================================================
-     OVERLAY
-  ========================================================= */
-
-  function showOverlay(
-    t,
-    s,
-    b
-  ) {
-
-    ovTitle.textContent =
-      t;
-
-    ovSub.textContent =
-      s;
-
-    ovBtn.textContent =
-      b;
-
-    settingsEl.hidden =
-      !(
-        b === "Play" ||
-        b === "Play again"
-      );
-
-    overlay.classList.add(
-      "show"
-    );
-  }
-
-  const hideOverlay =
-    () =>
-      overlay.classList.remove(
-        "show"
-      );
-
-  /* =========================================================
-     PLAYER CONTROL
-  ========================================================= */
-
-  function steer(name) {
-
-    if (botOn)
-      return;
-
-    waiting = false;
-
-    const d =
-      DIRS[name];
-
-    const ref =
-      queue.length
-        ? queue[
-            queue.length - 1
-          ]
-        : dir;
-
-    if (
-      d === ref ||
-      (
-        d.x === -ref.x &&
-        d.y === -ref.y
-      ) ||
-      queue.length >= 2
-    ) {
-      return;
-    }
-
-    queue.push(d);
-  }
-
-  /* =========================================================
-     START / PAUSE
-  ========================================================= */
-
-  function startOrToggle() {
-
-    if (
-      state === "ready"
-    ) {
-
-      state =
-        "running";
-
-      hideOverlay();
-
-    } else if (
-      state === "running"
-    ) {
-
-      state =
-        "paused";
-
-      showOverlay(
-        "Paused",
-        "Press Space to resume",
-        "Resume"
-      );
-
-      return;
-
-    } else if (
-      state === "paused"
-    ) {
-
-      state =
-        "running";
-
-      hideOverlay();
-
-    } else if (
-      state === "over" ||
-      state === "won"
-    ) {
-
-      reset();
-
-      state =
-        "running";
-
-      hideOverlay();
-
-    } else {
-
-      return;
-    }
-
-    waiting =
-      !botOn;
-
-    last =
-      performance.now();
-  }
-
-  /* =========================================================
-     GAME TICK
-  ========================================================= */
-
-  function tick() {
-
-    if (botOn) {
-
-      const n =
-        botPick();
-
-      if (n) {
-
-        queue.length =
-          0;
-
-        queue.push(
-          DIRS[n]
-        );
-      }
-    }
-
-    if (
-      queue.length
-    ) {
-      dir =
-        queue.shift();
-    }
-
-    const head = {
-      x:
-        snake[0].x +
-        dir.x,
-
-      y:
-        snake[0].y +
-        dir.y
-    };
-
-    const hitWall =
-      (
-        !INF &&
-        (
-          head.x < 0 ||
-          head.y < 0 ||
-          head.x >= COLS ||
-          head.y >= ROWS
-        )
-      ) ||
-      isWall(
-        head.x,
-        head.y
-      );
-
-    const fi =
-      hitWall
-        ? -1
-        : foods.findIndex(
-            f =>
-              f.x === head.x &&
-              f.y === head.y
-          );
-
-    const eating =
-      fi >= 0;
-
-    const body =
-      eating
-        ? snake
-        : snake.slice(0, -1);
-
-    if (
-      hitWall ||
-      body.some(
-        s =>
-          s.x === head.x &&
-          s.y === head.y
-      )
-    ) {
-
-      return finish(
-        "over"
-      );
-    }
-
-    prev =
-      snake.map(
-        s => ({
-          ...s
-        })
-      );
-
-    snake.unshift(
-      head
-    );
-
-    if (eating) {
-
-      prev.push({
-        ...prev[
-          prev.length - 1
-        ]
-      });
-
-      score++;
-
-      scoreEl.textContent =
-        score;
-
-      scoreEl.classList.remove(
-        "pop"
-      );
-
-      void scoreEl.offsetWidth;
-
-      scoreEl.classList.add(
-        "pop"
-      );
-
-      burst(
-        (
-          foods[fi].x +
-          .5
-        ) * CELL,
-
-        (
-          foods[fi].y +
-          .55
-        ) * CELL
-      );
-
-      beep(
-        520,
-        920,
-        .12
-      );
-
-      if (
-        score > best
-      ) {
-
-        best =
-          score;
-
-        bestEl.textContent =
-          best;
-
-        try {
-          localStorage.setItem(
-            "snake-best",
-            String(best)
-          );
-        } catch (e) {}
-      }
-
-      foods.splice(
-        fi,
-        1
-      );
-
-      placeFood();
-
-      if (
-        !foods.length
-      ) {
-        return nextRound();
-      }
-
-    } else {
-
-      snake.pop();
-    }
-
-    if (INF) {
-
-      for (
-        let i =
-          foods.length - 1;
-        i >= 0;
-        i--
-      ) {
-
-        if (
-          Math.abs(
-            foods[i].x -
-            head.x
-          ) > 10 ||
-          Math.abs(
-            foods[i].y -
-            head.y
-          ) > 9
-        ) {
-
-          foods.splice(
-            i,
-            1
-          );
-
-          placeFood();
-        }
-      }
-    }
-  }
-
-  /* =========================================================
-     NEXT ROUND
-  ========================================================= */
-
-  function nextRound() {
-
-    wallSeed =
-      (
-        Math.random() *
-        2147483647
-      ) | 0;
-
-    const cy =
-      Math.floor(
-        ROWS / 2
-      );
-
-    snake = [
-      {
-        x: 5,
-        y: cy
-      },
-      {
-        x: 4,
-        y: cy
-      },
-      {
-        x: 3,
-        y: cy
-      }
-    ];
-
-    prev =
-      snake.map(
-        s => ({
-          ...s
-        })
-      );
-
-    dir =
-      DIRS.right;
-
-    ang = 0;
-    queue = [];
-    acc = 0;
-    waiting = false;
-
-    foods = [];
-
-    for (
-      let i = 0;
-      i < cfg.apples;
-      i++
-    ) {
-      placeFood();
-    }
-
-    state =
-      "countdown";
-
-    cdT = 0;
-
-    beep(
-      600,
-      1200,
-      .4
-    );
-  }
-
-  /* =========================================================
-     FINISH
-  ========================================================= */
-
-  function finish(result) {
-
-    if (
-      result === "over"
-    ) {
-
-      shake =
-        PERF
-          ? 0
-          : 1;
-
-      beep(
-        200,
-        50,
-        .4,
-        "sawtooth"
-      );
-
-    } else {
-
-      beep(
-        600,
-        1200,
-        .4
-      );
-    }
-
-    state =
-      result;
-
-    deathAt =
-      performance.now();
-
-    acc =
-      delay;
-
-    prev =
-      snake.map(
-        s => ({
-          ...s
-        })
-      );
-
-    overTimer =
-      setTimeout(
-        showGameOver,
-        result === "won"
-          ? 300
-          : 700
-      );
   }
 
   function showGameOver() {
-
-    const id =
-      runId;
-
-    showOverlay(
-      state === "won"
-        ? "You win!"
-        : "Game over",
-
-      "Score " +
-        score,
-
-      "Play again"
-    );
-
-    if (botOn) {
-
-      setTimeout(
-        () => {
-
-          if (
-            id === runId &&
-            botOn &&
-            (
-              state === "over" ||
-              state === "won"
-            )
-          ) {
-            startOrToggle();
-          }
-
-        },
-        1500
-      );
+    const won = state === "won";
+    showOverlay(won ? "You win!" : "Game over", (won ? "You filled the whole board! " : "") + "Score " + score, "Play again");
+    if (cfg.auto === "on") {                                  // auto replay: start the next game by itself
+      const again = () => {
+        if (cfg.auto !== "on" || (state !== "over" && state !== "won")) return;
+        if (document.hidden || setOpen) { overTimer = setTimeout(again, 500); return; }
+        startOrToggle();
+      };
+      overTimer = setTimeout(again, 1500);
     }
   }
 
-  /* =========================================================
-     DRAWING
-  ========================================================= */
+  /* ---------- sizing (crisp on any screen; 1x in Performance Mode) ---------- */
+  function resize() {
+    const dpr = PERF ? 1 : (window.devicePixelRatio || 1);
+    const w = Math.round(canvas.clientWidth * dpr);
+    canvas.width = w; canvas.height = Math.round(w * LH / LW);
+    canvas.style.height = "auto";
+    canvas.style.aspectRatio = LW + " / " + LH;
+  }
+  window.addEventListener("resize", resize);
 
-  const lerp =
-    (a, b, t) =>
-      a +
-      (b - a) * t;
+  function applyConfig() {
+    [COLS, ROWS] = MAPS[cfg.map]; INF = cfg.map === "infinite"; curMode = cfg.map + "-" + cfg.speed;
+    if (!INF && window.matchMedia("(pointer: fine)").matches) [COLS, ROWS] = [ROWS, COLS];   // PC: invert map sizes (wide instead of tall)
+    LW = COLS * CELL; LH = ROWS * CELL;
+    cfg.apples = Math.max(1, Math.min(cfg.apples | 0 || 1, COLS * ROWS - 3));
+    document.documentElement.style.setProperty("--ar", COLS / ROWS);
+    document.documentElement.style.setProperty("--maxw", COLS * 48 + "px");
+    setApples.max = COLS * ROWS - 3; setApples.value = cfg.apples; setSpeed.value = cfg.speed; setMap.value = cfg.map; speedSlider.value = cfg.aiSpeed;
+    applyLook();
+    resize();
+  }
+  for (const el of [setSpeed, setMap, setApples]) el.addEventListener("change", () => {
+    cfg.speed = setSpeed.value; if (el === setSpeed) cfg.aiSpeed = presetV(cfg.speed); cfg.map = setMap.value; cfg.apples = parseInt(setApples.value, 10) || 1;
+    saveCfg();
+    el.blur(); if (state === "ready") reset();
+  });
+
+  /* ---------- settings tab ---------- */
+  const setModal = $("setModal");
+  let setOpen = false;
+  function closeSettings() { setOpen = false; setModal.hidden = true; }
+  function openSettings() {
+    setOpen = true; if (state === "running") startOrToggle();     // pause the game
+    setModal.hidden = false;
+  }
+  $("setBtn").addEventListener("click", e => { e.currentTarget.blur(); openSettings(); });
+  $("setClose").addEventListener("click", closeSettings);
+  setModal.addEventListener("click", e => { if (e.target === setModal) closeSettings(); });
+  setSnake.addEventListener("input", () => { cfg.snakeColor = setSnake.value; applyLook(); saveCfg(); });
+  setMapColor.addEventListener("input", () => { cfg.mapColor = setMapColor.value; applyLook(); saveCfg(); });
+  setPerf.addEventListener("change", () => { cfg.perf = setPerf.value; applyLook(); resize(); saveCfg(); setPerf.blur(); });
+  setSound.addEventListener("change", () => { cfg.sound = setSound.value; muted = cfg.sound === "off"; saveCfg(); setSound.blur(); });
+  setAuto.addEventListener("change", () => { cfg.auto = setAuto.value; saveCfg(); setAuto.blur(); });
+  $("setReset").addEventListener("click", e => { cfg.snakeColor = DEF_SNAKE; cfg.mapColor = DEF_MAP; applyLook(); saveCfg(); e.currentTarget.blur(); });
+
+  /* ---------- AI: Q-learning, shared globally through a Cloudflare Worker ---------- */
+  const AI_URL = "https://snake-ai.bleepbloop-ai.workers.dev";
+  const NQ = 576 * 3, GAMMA = .9, ALPHA = .15, EPS = .05;
+  let Q = new Float32Array(NQ), aiAcc = new Map(), aiPending = null, aiTrace = [], aiSteps = 0, aiLastSync = 0, aiGames = 0;
+  try { const a = JSON.parse(localStorage.getItem("snake-ai-q")); if (Array.isArray(a) && a.length === NQ) Q = Float32Array.from(a); } catch (e) {}
+
+  const aiBlocked = (x, y, body) => (!INF && (x < 0 || y < 0 || x >= COLS || y >= ROWS)) || isWall(x, y) || body.has(x + "," + y);
+  function aiArea(sx, sy, body, cap) {                       // room to escape after a move (flood fill)
+    const seen = new Set([sx + "," + sy]), stack = [[sx, sy]]; let c = 0;
+    while (stack.length && c < cap) {
+      const [x, y] = stack.pop(); c++;
+      for (const d of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nx = x + d[0], ny = y + d[1], k = nx + "," + ny;
+        if (!seen.has(k) && !aiBlocked(nx, ny, body)) { seen.add(k); stack.push([nx, ny]); }
+      }
+    }
+    return c;
+  }
+  function aiState() {                                       // 576 states: danger(3 bits) x roomy(3 bits) x food direction(9)
+    const h = snake[0], n = snake.length, body = new Set(snake.slice(0, -1).map(c => c.x + "," + c.y));
+    const Lf = { x: dir.y, y: -dir.x }, Rt = { x: -dir.y, y: dir.x }, mv = [dir, Lf, Rt], cells = [];
+    let db = 0, rb = 0;
+    mv.forEach((m, i) => {
+      const x = h.x + m.x, y = h.y + m.y; cells.push({ x, y });
+      if (aiBlocked(x, y, body)) db |= 1 << i; else if (aiArea(x, y, body, n) >= n) rb |= 1 << i;
+    });
+    let f = foods[0] || h, bd = 1e9;
+    for (const c of foods) { const dd = Math.abs(c.x - h.x) + Math.abs(c.y - h.y); if (dd < bd) { bd = dd; f = c; } }
+    const fx = f.x - h.x, fy = f.y - h.y;
+    const sf = Math.sign(fx * dir.x + fy * dir.y), sl = Math.sign(fx * Rt.x + fy * Rt.y);
+    return { s: (db * 8 + rb) * 9 + (sf + 1) * 3 + (sl + 1), mv, cells, db, rb };
+  }
+  const aiDist = c => foods.reduce((m, f) => Math.min(m, Math.abs(f.x - c.x) + Math.abs(f.y - c.y)), 1e9);
+  const aiMax = st => { let m = -1e9; for (let a = 0; a < 3; a++) if (!(st.db >> a & 1)) m = Math.max(m, Q[st.s * 3 + a]); return m < -1e8 ? -100 : m; };
+  function aiChoose(st) {
+    const d0 = aiDist(snake[0]), cand = []; let best = -1, bv = -1e9;
+    for (let a = 0; a < 3; a++) {
+      if (st.db >> a & 1) continue;
+      const v = Q[st.s * 3 + a] + ((st.rb >> a & 1) ? 0 : -30) + (d0 - aiDist(st.cells[a])) * .5 + Math.random() * .01;
+      cand.push(a); if (v > bv) { bv = v; best = a; }
+    }
+    if (best < 0) return 0;
+    if (Math.random() < EPS && cand.length > 1) best = cand[Math.floor(Math.random() * cand.length)];
+    return best;
+  }
+  function aiUpdate(i, target, a = ALPHA) {
+    Q[i] += a * (target - Q[i]);
+    const e = aiAcc.get(i) || { c: 0, t: 0 }; e.c++; e.t += target; aiAcc.set(i, e);
+  }
+  function aiReward(head, eating) {
+    aiPending.r = eating ? 10 : aiDist(snake[0]) > aiDist(head) ? .5 : -.7;
+    aiTrace.push(aiPending.i); if (aiTrace.length > 8) aiTrace.shift();
+  }
+  function aiDie() {                                         // learn from the mistake: punish the death and the moves that led to it
+    if (aiPending) aiUpdate(aiPending.i, -100);
+    aiTrace.slice().reverse().forEach((i, k) => aiUpdate(i, -100 * Math.pow(.7, k + 1), .08));
+    aiPending = null; aiTrace = []; aiGames++;
+  }
+  function aiEnd() { if (aiPending) aiUpdate(aiPending.i, aiPending.r); aiPending = null; aiTrace = []; }
+  function aiSave() {
+    try { localStorage.setItem("snake-ai-q", JSON.stringify(Array.from(Q, v => +v.toFixed(2)))); } catch (e) {}
+    aiSync(4000);
+  }
+  async function aiSync(gap) {                               // push what we learned, pull the shared brain
+    const now = Date.now();
+    if (!AI_URL || now - aiLastSync < gap) return;
+    aiLastSync = now;
+    const snap = aiAcc, g = aiGames; aiAcc = new Map(); aiGames = 0;
+    const u = Array.from(snap, ([i, e]) => [i, Math.min(e.c, 50), +(e.t / e.c).toFixed(2)]);
+    try {
+      const r = await fetch(AI_URL + (u.length ? "/learn" : "/brain"),
+        u.length ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ u, g }) } : undefined);
+      const b = r.ok ? await r.json() : null;
+      if (!b || !Array.isArray(b.q) || b.q.length !== NQ) throw 0;
+      Q = Float32Array.from(b.q);
+    } catch (e) {
+      for (const [i, x] of snap) { const y = aiAcc.get(i) || { c: 0, t: 0 }; y.c += x.c; y.t += x.t; aiAcc.set(i, y); }
+      aiGames += g;
+    }
+  }
+  aiSync(0);
+
+  /* ---------- game logic ---------- */
+  function reset() {
+    clearTimeout(overTimer); runId++; applyConfig();
+    wallSeed = (Math.random() * 2147483647) | 0;
+    const cy = Math.floor(ROWS / 2);
+    snake = [{x:5,y:cy},{x:4,y:cy},{x:3,y:cy}];
+    prev = snake.map(s => ({...s}));
+    dir = DIRS.right; ang = 0; shake = 0; particles = []; queue = []; score = 0; delay = speedDelay(); aiPending = null; aiTrace = []; acc = 0; grew = false;
+    state = "ready"; scoreEl.textContent = 0;
+    foods = [];
+    for (let i = 0; i < cfg.apples; i++) placeFood();
+    showOverlay("Snake", "Press an arrow key or swipe to start", "Play");
+  }
+
+  function placeFood() {
+    const taken = new Set(snake.concat(foods).map(c => c.x + "," + c.y));
+    const free = [];
+    const x0 = INF ? snake[0].x - 8 : 0, y0 = INF ? snake[0].y - 7 : 0;   // infinite: spawn in the view around the head
+    for (let y = y0; y < y0 + ROWS; y++) for (let x = x0; x < x0 + COLS; x++)
+      if (!taken.has(x + "," + y) && !isWall(x, y)) free.push({x, y});
+    if (free.length) { const c = free[Math.floor(Math.random() * free.length)]; foods.push({ x: c.x, y: c.y, born: performance.now() }); }
+  }
+
+  function showOverlay(t, s, b) {
+    ovTitle.textContent = t; ovSub.textContent = s; ovBtn.textContent = b;
+    settingsEl.hidden = !(b === "Play" || b === "Play again");
+    overlay.classList.add("show");
+  }
+  const hideOverlay = () => overlay.classList.remove("show");
+
+  function steer(name) {
+    waiting = false;
+    const d = DIRS[name], ref = queue.length ? queue[queue.length - 1] : dir;
+    if (d === ref || (d.x === -ref.x && d.y === -ref.y) || queue.length >= 2) return;
+    queue.push(d);
+  }
+
+  function startOrToggle() {
+    if (state === "ready") { state = "running"; hideOverlay(); }
+    else if (state === "running") { state = "paused"; showOverlay("Paused", "Press Space to resume", "Resume"); return; }
+    else if (state === "paused") { state = "running"; hideOverlay(); }
+    else if (state === "over" || state === "won") { reset(); state = "running"; hideOverlay(); }
+    else return;                          // countdown: nothing to toggle
+    waiting = false;                      // the AI drives, so no waiting for a direction
+    last = performance.now();
+  }
+
+  function tick() {
+    const st = aiState();
+    if (aiPending) aiUpdate(aiPending.i, aiPending.r + GAMMA * aiMax(st));
+    const act = aiChoose(st); dir = st.mv[act]; aiPending = { i: st.s * 3 + act, r: 0 };
+    if (++aiSteps % 400 === 0) aiSync(15000);
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    const hitWall = (!INF && (head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS)) || isWall(head.x, head.y);
+    const fi = hitWall ? -1 : foods.findIndex(f => f.x === head.x && f.y === head.y), eating = fi >= 0;
+    const body = eating ? snake : snake.slice(0, -1);
+    if (hitWall || body.some(s => s.x === head.x && s.y === head.y)) { aiDie(); return finish("over"); }
+    aiReward(head, eating);
+
+    prev = snake.map(s => ({...s}));
+    snake.unshift(head);
+    if (eating) {
+      prev.push({...prev[prev.length - 1]});            // new tail grows out of the old tail
+      score++; scoreEl.textContent = score;
+      scoreEl.classList.remove("pop"); void scoreEl.offsetWidth; scoreEl.classList.add("pop");
+      burst((foods[fi].x + .5) * CELL, (foods[fi].y + .55) * CELL); beep(520, 920, .12);
+      if (score > best) {
+        best = score; bestEl.textContent = best;
+        try { localStorage.setItem("snake-best", String(best)); } catch (e) {}
+      }
+      foods.splice(fi, 1); placeFood();
+      if (!foods.length) return nextRound();            // map beaten: new round, score carries over
+    } else snake.pop();
+    if (INF) for (let i = foods.length - 1; i >= 0; i--)      // apples left far behind respawn near the snake
+      if (Math.abs(foods[i].x - head.x) > 10 || Math.abs(foods[i].y - head.y) > 9) { foods.splice(i, 1); placeFood(); }
+  }
+
+  function nextRound() {          // map beaten: fresh board, keep the score, 3-2-1, then keep going until you die
+    aiEnd();
+    wallSeed = (Math.random() * 2147483647) | 0;
+    const cy = Math.floor(ROWS / 2);
+    snake = [{x:5,y:cy},{x:4,y:cy},{x:3,y:cy}];
+    prev = snake.map(s => ({...s}));
+    dir = DIRS.right; ang = 0; queue = []; acc = 0; waiting = false;
+    foods = []; for (let i = 0; i < cfg.apples; i++) placeFood();
+    state = "countdown"; cdT = 0;
+    beep(600, 1200, .4);
+  }
+
+  function finish(result) {
+    aiSave();
+    if (result === "over") { shake = PERF ? 0 : 1; beep(200, 50, .4, "sawtooth"); } else beep(600, 1200, .4);
+    state = result; deathAt = performance.now(); acc = delay;   // freeze at the last full position
+    prev = snake.map(s => ({...s}));
+    overTimer = setTimeout(showGameOver, result === "won" ? 300 : 700);
+  }
+
+  /* ---------- drawing ---------- */
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = t => t * t * (3 - 2 * t);
 
   function draw(now) {
+    const k = canvas.width / LW, sh = PERF ? 0 : shake * 8 * k;
+    ctx.setTransform(k, 0, 0, k, (Math.random() - .5) * sh, (Math.random() - .5) * sh);
 
-    const k =
-      canvas.width /
-      LW;
-
-    const sh =
-      PERF
-        ? 0
-        : shake * 8 * k;
-
-    ctx.setTransform(
-      k,
-      0,
-      0,
-      k,
-      (Math.random() - .5) * sh,
-      (Math.random() - .5) * sh
-    );
-
-    let gx = 0;
-    let gy = 0;
-
+    // checkerboard (+ walls in infinite mode)
+    let gx = 0, gy = 0;
     if (INF) {
-
-      const t0 =
-        state === "running" ||
-        state === "paused"
-          ? Math.min(
-              1,
-              acc / delay
-            )
-          : 1;
-
-      const cx =
-        (
-          lerp(
-            prev[0].x,
-            snake[0].x,
-            t0
-          ) +
-          .5
-        ) * CELL -
-        LW / 2;
-
-      const cy =
-        (
-          lerp(
-            prev[0].y,
-            snake[0].y,
-            t0
-          ) +
-          .5
-        ) * CELL -
-        LH / 2;
-
-      ctx.translate(
-        -cx,
-        -cy
-      );
-
-      gx =
-        Math.floor(
-          cx / CELL
-        );
-
-      gy =
-        Math.floor(
-          cy / CELL
-        );
+      const t0 = state === "running" || state === "paused" ? Math.min(1, acc / delay) : 1;
+      const cx = (lerp(prev[0].x, snake[0].x, t0) + .5) * CELL - LW / 2, cy = (lerp(prev[0].y, snake[0].y, t0) + .5) * CELL - LH / 2;
+      ctx.translate(-cx, -cy); gx = Math.floor(cx / CELL); gy = Math.floor(cy / CELL);
     }
-
-    /* BOARD */
-
-    for (
-      let y = gy;
-      y <= gy + ROWS;
-      y++
-    ) {
-
-      for (
-        let x = gx;
-        x <= gx + COLS;
-        x++
-      ) {
-
-        ctx.fillStyle =
-          (x + y) & 1
-            ? tileB
-            : tileA;
-
-        ctx.fillRect(
-          x * CELL,
-          y * CELL,
-          CELL,
-          CELL
-        );
-
-        if (
-          INF &&
-          isWall(x, y)
-        ) {
-
-          const wx =
-            x * CELL;
-
-          const wy =
-            y * CELL;
-
-          const o = 3;
-
-          ctx.fillStyle =
-            "#fff";
-
-          ctx.fillRect(
-            wx,
-            wy,
-            CELL,
-            CELL
-          );
-
-          ctx.fillStyle =
-            "#000";
-
-          if (
-            !isWall(
-              x,
-              y - 1
-            )
-          ) {
-            ctx.fillRect(
-              wx,
-              wy,
-              CELL,
-              o
-            );
-          }
-
-          if (
-            !isWall(
-              x,
-              y + 1
-            )
-          ) {
-            ctx.fillRect(
-              wx,
-              wy + CELL - o,
-              CELL,
-              o
-            );
-          }
-
-          if (
-            !isWall(
-              x - 1,
-              y
-            )
-          ) {
-            ctx.fillRect(
-              wx,
-              wy,
-              o,
-              CELL
-            );
-          }
-
-          if (
-            !isWall(
-              x + 1,
-              y
-            )
-          ) {
-            ctx.fillRect(
-              wx + CELL - o,
-              wy,
-              o,
-              CELL
-            );
-          }
-        }
+    for (let y = gy; y <= gy + ROWS; y++) for (let x = gx; x <= gx + COLS; x++) {
+      ctx.fillStyle = (x + y) & 1 ? tileB : tileA;
+      ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+      if (INF && isWall(x, y)) {
+        const wx = x * CELL, wy = y * CELL, o = 3;
+        ctx.fillStyle = "#fff"; ctx.fillRect(wx, wy, CELL, CELL);
+        ctx.fillStyle = "#000";                                  // outline only on edges not shared with another wall
+        if (!isWall(x, y - 1)) ctx.fillRect(wx, wy, CELL, o);
+        if (!isWall(x, y + 1)) ctx.fillRect(wx, wy + CELL - o, CELL, o);
+        if (!isWall(x - 1, y)) ctx.fillRect(wx, wy, o, CELL);
+        if (!isWall(x + 1, y)) ctx.fillRect(wx + CELL - o, wy, o, CELL);
       }
     }
 
-    /* FOOD */
-
-    for (
-      const food of foods
-    ) {
-
-      const k =
-        Math.max(
-          0,
-          Math.min(
-            1,
-            (
-              now -
-              food.born
-            ) / 260
-          )
-        );
-
-      const s =
-        Math.max(
-          .01,
-          k < 1
-            ? (
-                1 +
-                2.2 *
-                  Math.pow(
-                    k - 1,
-                    3
-                  ) +
-                1.2 *
-                  Math.pow(
-                    k - 1,
-                    2
-                  )
-              )
-            : 1
-        );
-
-      drawApple(
-        (
-          food.x +
-          .5
-        ) * CELL,
-
-        (
-          food.y +
-          .55
-        ) * CELL,
-
-        s
-      );
+    // food (pops in with a little overshoot, then sits still)
+    for (const food of foods) {
+      const k = Math.max(0, Math.min(1, (now - food.born) / 260));
+      const s = Math.max(0.01, k < 1 ? 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2) : 1);
+      drawApple((food.x + .5) * CELL, (food.y + .55) * CELL, s);
     }
 
-    /* SNAKE */
-
-    const t =
-      state === "running" ||
-      state === "paused"
-        ? Math.min(
-            1,
-            acc / delay
-          )
-        : 1;
-
-    const P =
-      (x, y) => ({
-        x:
-          (x + .5) *
-          CELL,
-
-        y:
-          (y + .5) *
-          CELL
-      });
-
-    const n =
-      snake.length;
-
-    const H =
-      P(
-        lerp(
-          prev[0].x,
-          snake[0].x,
-          t
-        ),
-
-        lerp(
-          prev[0].y,
-          snake[0].y,
-          t
-        )
-      );
-
-    const pt =
-      prev[n - 1] ||
-      snake[n - 1];
-
-    const T =
-      P(
-        lerp(
-          pt.x,
-          snake[n - 1].x,
-          t
-        ),
-
-        lerp(
-          pt.y,
-          snake[n - 1].y,
-          t
-        )
-      );
-
+    // snake positions, interpolated between ticks
+    const t = state === "running" || state === "paused" ? Math.min(1, acc / delay) : 1;
+    const P = (x, y) => ({ x: (x + .5) * CELL, y: (y + .5) * CELL });
+    const n = snake.length;
+    const H = P(lerp(prev[0].x, snake[0].x, t), lerp(prev[0].y, snake[0].y, t));
+    const pt = prev[n - 1] || snake[n - 1];
+    const T = P(lerp(pt.x, snake[n - 1].x, t), lerp(pt.y, snake[n - 1].y, t));
+    // Body path: moving head, then the fixed grid corners, then the moving tail tip.
+    // Corners never slide, so the shape stays rigid and doesn't wiggle.
     const V = [H];
-
-    for (
-      let i = 1;
-      i < n;
-      i++
-    ) {
-
-      V.push(
-        P(
-          snake[i].x,
-          snake[i].y
-        )
-      );
-    }
-
+    for (let i = 1; i < n; i++) V.push(P(snake[i].x, snake[i].y));
     V.push(T);
-
-    const pts =
-      V.filter(
-        (p, i) =>
-          i === 0 ||
-          Math.hypot(
-            p.x -
-              V[i - 1].x,
-
-            p.y -
-              V[i - 1].y
-          ) > .001
-      );
+    const pts = V.filter((p, i) => i === 0 || Math.hypot(p.x - V[i - 1].x, p.y - V[i - 1].y) > 0.001);
+    // note: filter compares against the unfiltered neighbour, which is fine for duplicates
 
     let alpha = 1;
+    if (state === "over") alpha = 0.55 + 0.45 * Math.abs(Math.cos((now - deathAt) / 110)) * Math.max(0, 1 - (now - deathAt) / 700);
+    ctx.globalAlpha = alpha;
 
-    if (
-      state === "over"
-    ) {
-
-      alpha =
-        .55 +
-        .45 *
-          Math.abs(
-            Math.cos(
-              (
-                now -
-                deathAt
-              ) / 110
-            )
-          ) *
-          Math.max(
-            0,
-            1 -
-              (
-                now -
-                deathAt
-              ) / 700
-          );
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const path = new Path2D();
+    path.moveTo(pts[0].x, pts[0].y);
+    const R = CELL * 0.5, m = pts.length;
+    for (let i = 1; i < m - 1; i++) {
+      const d1 = Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+      const d2 = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y);
+      const r = Math.min(R, d1 * (i === 1 ? 1 : 0.5), d2 * (i === m - 2 ? 1 : 0.5));
+      path.arcTo(pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y, r);
     }
+    path.lineTo(pts[m - 1].x, pts[m - 1].y);
+    if (!PERF) { ctx.save(); ctx.translate(0, 5); ctx.strokeStyle = "rgba(0,0,0,.16)"; ctx.lineWidth = CELL * 0.74; ctx.stroke(path); ctx.restore(); }
+    ctx.strokeStyle = SNAKE; ctx.lineWidth = CELL * 0.74; ctx.stroke(path);
+    if (!PERF) { ctx.save(); ctx.translate(0, -3); ctx.strokeStyle = "rgba(255,255,255,.16)"; ctx.lineWidth = CELL * 0.3; ctx.stroke(path); ctx.restore(); }
 
-    ctx.globalAlpha =
-      alpha;
-
-    ctx.lineCap =
-      "round";
-
-    ctx.lineJoin =
-      "round";
-
-    const path =
-      new Path2D();
-
-    path.moveTo(
-      pts[0].x,
-      pts[0].y
-    );
-
-    const R =
-      CELL * .5;
-
-    const m =
-      pts.length;
-
-    for (
-      let i = 1;
-      i < m - 1;
-      i++
-    ) {
-
-      const d1 =
-        Math.hypot(
-          pts[i].x -
-            pts[i - 1].x,
-
-          pts[i].y -
-            pts[i - 1].y
-        );
-
-      const d2 =
-        Math.hypot(
-          pts[i + 1].x -
-            pts[i].x,
-
-          pts[i + 1].y -
-            pts[i].y
-        );
-
-      const r =
-        Math.min(
-          R,
-
-          d1 *
-            (
-              i === 1
-                ? 1
-                : .5
-            ),
-
-          d2 *
-            (
-              i === m - 2
-                ? 1
-                : .5
-            )
-        );
-
-      path.arcTo(
-        pts[i].x,
-        pts[i].y,
-
-        pts[i + 1].x,
-        pts[i + 1].y,
-
-        r
-      );
+    // head
+    const h = H, fx = Math.cos(ang), fy = Math.sin(ang), px = -fy, py = fx;
+    if (!PERF) { ctx.fillStyle = "rgba(0,0,0,.16)"; ctx.beginPath(); ctx.arc(h.x, h.y + 5, CELL * 0.42, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = SNAKE; ctx.beginPath(); ctx.arc(h.x, h.y, CELL * 0.42, 0, Math.PI * 2); ctx.fill();
+    for (const side of [-1, 1]) {
+      const ex = h.x + fx * CELL * 0.1 + px * side * CELL * 0.2;
+      const ey = h.y + fy * CELL * 0.1 + py * side * CELL * 0.2;
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex, ey, CELL * 0.14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#1b2a5c"; ctx.beginPath();
+      ctx.arc(ex + fx * CELL * 0.05, ey + fy * CELL * 0.05, CELL * 0.075, 0, Math.PI * 2); ctx.fill();
     }
-
-    path.lineTo(
-      pts[m - 1].x,
-      pts[m - 1].y
-    );
-
-    if (!PERF) {
-
-      ctx.save();
-
-      ctx.translate(
-        0,
-        5
-      );
-
-      ctx.strokeStyle =
-        "rgba(0,0,0,.16)";
-
-      ctx.lineWidth =
-        CELL * .74;
-
-      ctx.stroke(path);
-
-      ctx.restore();
-    }
-
-    ctx.strokeStyle =
-      SNAKE;
-
-    ctx.lineWidth =
-      CELL * .74;
-
-    ctx.stroke(path);
-
-    if (!PERF) {
-
-      ctx.save();
-
-      ctx.translate(
-        0,
-        -3
-      );
-
-      ctx.strokeStyle =
-        "rgba(255,255,255,.16)";
-
-      ctx.lineWidth =
-        CELL * .3;
-
-      ctx.stroke(path);
-
-      ctx.restore();
-    }
-
-    /* HEAD */
-
-    const h =
-      H;
-
-    const fx =
-      Math.cos(ang);
-
-    const fy =
-      Math.sin(ang);
-
-    const px =
-      -fy;
-
-    const py =
-      fx;
-
-    if (!PERF) {
-
-      ctx.fillStyle =
-        "rgba(0,0,0,.16)";
-
-      ctx.beginPath();
-
-      ctx.arc(
-        h.x,
-        h.y + 5,
-        CELL * .42,
-        0,
-        Math.PI * 2
-      );
-
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#e7471d";
+    for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 4 * p.life + 1, 0, 6.283); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if (state === "running" && waiting) {                      // hint while the snake waits
+      ctx.setTransform(k, 0, 0, k, 0, 0);
+      const w = 300, h = 40, x = LW / 2 - w / 2, y = LH - 64;
+      ctx.fillStyle = "rgba(30,55,15,.6)"; ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 20); else ctx.rect(x, y, w, h);
       ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.font = "600 18px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("Press an arrow key or swipe", LW / 2, y + h / 2);
     }
-
-    ctx.fillStyle =
-      SNAKE;
-
-    ctx.beginPath();
-
-    ctx.arc(
-      h.x,
-      h.y,
-      CELL * .42,
-      0,
-      Math.PI * 2
-    );
-
-    ctx.fill();
-
-    for (
-      const side of [-1, 1]
-    ) {
-
-      const ex =
-        h.x +
-        fx * CELL * .1 +
-        px *
-          side *
-          CELL *
-          .2;
-
-      const ey =
-        h.y +
-        fy * CELL * .1 +
-        py *
-          side *
-          CELL *
-          .2;
-
-      ctx.fillStyle =
-        "#fff";
-
-      ctx.beginPath();
-
-      ctx.arc(
-        ex,
-        ey,
-        CELL * .14,
-        0,
-        Math.PI * 2
-      );
-
-      ctx.fill();
-
-      ctx.fillStyle =
-        "#1b2a5c";
-
-      ctx.beginPath();
-
-      ctx.arc(
-        ex +
-          fx *
-            CELL *
-            .05,
-
-        ey +
-          fy *
-            CELL *
-            .05,
-
-        CELL * .075,
-
-        0,
-        Math.PI * 2
-      );
-
-      ctx.fill();
-    }
-
-    ctx.globalAlpha =
-      1;
-
-    /* PARTICLES */
-
-    ctx.fillStyle =
-      "#e7471d";
-
-    for (
-      const p of particles
-    ) {
-
-      ctx.globalAlpha =
-        Math.max(
-          0,
-          p.life
-        );
-
-      ctx.beginPath();
-
-      ctx.arc(
-        p.x,
-        p.y,
-        4 * p.life + 1,
-        0,
-        6.283
-      );
-
-      ctx.fill();
-    }
-
-    ctx.globalAlpha =
-      1;
-
-    /* HUMAN WAITING */
-
-    if (
-      state === "running" &&
-      waiting
-    ) {
-
-      ctx.setTransform(
-        k,
-        0,
-        0,
-        k,
-        0,
-        0
-      );
-
-      const w = 300;
-      const h = 40;
-
-      const x =
-        LW / 2 -
-        w / 2;
-
-      const y =
-        LH -
-        64;
-
-      ctx.fillStyle =
-        "rgba(30,55,15,.6)";
-
-      ctx.beginPath();
-
-      if (
-        ctx.roundRect
-      ) {
-
-        ctx.roundRect(
-          x,
-          y,
-          w,
-          h,
-          20
-        );
-
-      } else {
-
-        ctx.rect(
-          x,
-          y,
-          w,
-          h
-        );
-      }
-
-      ctx.fill();
-
-      ctx.fillStyle =
-        "#fff";
-
-      ctx.font =
-        "600 18px sans-serif";
-
-      ctx.textAlign =
-        "center";
-
-      ctx.textBaseline =
-        "middle";
-
-      ctx.fillText(
-        "Press an arrow key or swipe",
-        LW / 2,
-        y + h / 2
-      );
-    }
-
-    /* COUNTDOWN */
-
-    if (
-      state === "countdown"
-    ) {
-
-      ctx.setTransform(
-        k,
-        0,
-        0,
-        k,
-        0,
-        0
-      );
-
-      const f =
-        cdT % 1;
-
-      ctx.fillStyle =
-        "rgba(30,55,15,.35)";
-
-      ctx.fillRect(
-        0,
-        0,
-        LW,
-        LH
-      );
-
-      ctx.fillStyle =
-        "#fff";
-
-      ctx.textAlign =
-        "center";
-
-      ctx.textBaseline =
-        "middle";
-
-      ctx.font =
-        "700 24px sans-serif";
-
-      ctx.fillText(
-        "Map cleared! Next round starts in",
-        LW / 2,
-        LH / 2 -
-          CELL * 2.6
-      );
-
-      ctx.globalAlpha =
-        1 -
-        f * .6;
-
-      ctx.font =
-        "800 " +
-        Math.round(
-          CELL *
-          3 *
-          (
-            1.15 -
-            f * .3
-          )
-        ) +
-        "px sans-serif";
-
-      ctx.fillText(
-        String(
-          Math.ceil(
-            3 - cdT
-          )
-        ),
-        LW / 2,
-        LH / 2
-      );
-
-      ctx.globalAlpha =
-        1;
+    if (state === "countdown") {                               // 3-2-1 before the next round
+      ctx.setTransform(k, 0, 0, k, 0, 0);
+      const f = cdT % 1;
+      ctx.fillStyle = "rgba(30,55,15,.35)"; ctx.fillRect(0, 0, LW, LH);
+      ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "700 24px sans-serif"; ctx.fillText("Map cleared! Next round starts in", LW / 2, LH / 2 - CELL * 2.6);
+      ctx.globalAlpha = 1 - f * .6; ctx.font = "800 " + Math.round(CELL * 3 * (1.15 - f * .3)) + "px sans-serif";
+      ctx.fillText(String(Math.ceil(3 - cdT)), LW / 2, LH / 2);
+      ctx.globalAlpha = 1;
     }
   }
 
-  /* =========================================================
-     APPLE
-  ========================================================= */
-
-  const appleImg =
-    new Image();
-
-  appleImg.src =
-    svgUrl(
-      ICONS.apple
-    );
-
-  function drawApple(
-    cx,
-    cy,
-    s
-  ) {
-
-    if (
-      !appleImg.complete ||
-      !appleImg.naturalWidth
-    ) {
-      return;
-    }
-
-    const size =
-      CELL *
-      .95 *
-      s;
-
-    const ar =
-      appleImg.naturalWidth /
-      appleImg.naturalHeight;
-
-    const w =
-      ar >= 1
-        ? size
-        : size * ar;
-
-    const h =
-      ar >= 1
-        ? size / ar
-        : size;
-
+  const appleImg = new Image(); appleImg.src = "apple.png";
+  function drawApple(cx, cy, s) {
+    if (!appleImg.complete || !appleImg.naturalWidth) return;      // not loaded yet
+    const size = CELL * 0.95 * s, ar = appleImg.naturalWidth / appleImg.naturalHeight;
+    const w = ar >= 1 ? size : size * ar, h = ar >= 1 ? size / ar : size;
     if (!PERF) {
-
-      ctx.fillStyle =
-        "rgba(0,0,0,.12)";
-
-      ctx.beginPath();
-
-      ctx.ellipse(
-        cx,
-        cy + h * .38,
-        w * .3,
-        h * .1,
-        0,
-        0,
-        Math.PI * 2
-      );
-
-      ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,.12)";
+      ctx.beginPath(); ctx.ellipse(cx, cy + h * 0.38, w * 0.3, h * 0.1, 0, 0, Math.PI * 2); ctx.fill();
     }
-
-    ctx.drawImage(
-      appleImg,
-      cx - w / 2,
-      cy - h / 2 -
-        CELL * .03,
-      w,
-      h
-    );
+    ctx.drawImage(appleImg, cx - w / 2, cy - h / 2 - CELL * 0.03, w, h);
   }
 
-  /* =========================================================
-     MAIN LOOP
-  ========================================================= */
-
+  /* ---------- main loop ---------- */
   function loop(now) {
-
-    const dt =
-      Math.min(
-        (
-          now -
-          (
-            lastFrame ||
-            now
-          )
-        ) / 1000,
-        .05
-      );
-
-    lastFrame =
-      now;
-
-    let da =
-      Math.atan2(
-        dir.y,
-        dir.x
-      ) -
-      ang;
-
-    da =
-      Math.atan2(
-        Math.sin(da),
-        Math.cos(da)
-      );
-
-    ang +=
-      da *
-      Math.min(
-        1,
-        dt * 16
-      );
-
-    shake =
-      Math.max(
-        0,
-        shake -
-          dt * 2.5
-      );
-
-    for (
-      const q of particles
-    ) {
-
-      q.x +=
-        q.vx *
-        dt;
-
-      q.y +=
-        q.vy *
-        dt;
-
-      q.vx *= .93;
-      q.vy *= .93;
-
-      q.life -=
-        dt * 2.2;
-    }
-
-    particles =
-      particles.filter(
-        q =>
-          q.life > 0
-      );
-
-    if (
-      state === "countdown" &&
-      !setOpen &&
-      (
-        cdT += dt
-      ) >= 3
-    ) {
-
-      state =
-        "running";
-
-      acc = 0;
-
+    const dt = Math.min((now - (lastFrame || now)) / 1000, .05); lastFrame = now;
+    let da = Math.atan2(dir.y, dir.x) - ang; da = Math.atan2(Math.sin(da), Math.cos(da)); ang += da * Math.min(1, dt * 16);
+    shake = Math.max(0, shake - dt * 2.5);
+    for (const q of particles) { q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= .93; q.vy *= .93; q.life -= dt * 2.2; }
+    particles = particles.filter(q => q.life > 0);
+    if (state === "countdown" && !setOpen && (cdT += dt) >= 3) { state = "running"; acc = 0; last = now; }
+    if (state === "running" && !waiting) {
+      acc += Math.min(now - last, 100);
       last = now;
-    }
-
-    if (
-      state === "running" &&
-      !waiting
-    ) {
-
-      /*
-        PLAYER SPEED:
-        Uses the selected game speed.
-
-        BOT SPEED:
-        Uses the left-side slider.
-      */
-
-      const currentDelay =
-        botOn
-          ? getBotDelay()
-          : delay;
-
-      acc +=
-        Math.min(
-          now - last,
-          100
-        );
-
-      last =
-        now;
-
-      /*
-        Use the bot slider's live delay.
-        This means changing the slider
-        while the game is running immediately
-        changes the bot's speed.
-      */
-
-      while (
-        acc >= currentDelay &&
-        state === "running"
-      ) {
-
-        acc -=
-          currentDelay;
-
-        tick();
-      }
-
-    } else {
-
-      last =
-        now;
-    }
-
+      while (acc >= delay && state === "running") { acc -= delay; tick(); }
+    } else last = now;
     draw(now);
-
-    requestAnimationFrame(
-      loop
-    );
+    requestAnimationFrame(loop);
   }
 
-  /* =========================================================
-     KEYBOARD INPUT
-  ========================================================= */
-
-  window.addEventListener(
-    "keydown",
-    e => {
-
-      if (
-        e.ctrlKey ||
-        e.metaKey ||
-        e.altKey
-      ) {
-        return;
-      }
-
-      if (setOpen) {
-
-        if (
-          e.key === "Escape"
-        ) {
-          closeSettings();
-        }
-
-        return;
-      }
-
-      if (
-        e.target instanceof
-          HTMLInputElement ||
-        e.target instanceof
-          HTMLSelectElement
-      ) {
-        return;
-      }
-
-      const name =
-        KEYMAP[e.key];
-
-      if (name) {
-
-        e.preventDefault();
-
-        if (botOn)
-          return;
-
-        if (
-          state === "ready"
-        ) {
-          startOrToggle();
-        }
-
-        if (
-          state === "running"
-        ) {
-          steer(name);
-        }
-
-      } else if (
-        e.code === "Space"
-      ) {
-
-        e.preventDefault();
-
-        if (!e.repeat)
-          startOrToggle();
-
-      } else if (
-        e.key === "b" ||
-        e.key === "B"
-      ) {
-
-        setBotOn(
-          !botOn
-        );
-
-      } else if (
-        e.key === "m" ||
-        e.key === "M"
-      ) {
-
-        muted =
-          !muted;
-
-        cfg.sound =
-          muted
-            ? "off"
-            : "on";
-
-        setSound.value =
-          cfg.sound;
-
-        saveCfg();
-
-      } else if (
-        e.key === "r" ||
-        e.key === "R"
-      ) {
-
-        reset();
-
-      } else if (
-        e.key === "Enter" &&
-        state !== "running"
-      ) {
-
-        e.preventDefault();
-
-        startOrToggle();
-      }
-    }
-  );
-
-  /* =========================================================
-     PLAY BUTTON
-  ========================================================= */
-
-  ovBtn.addEventListener(
-    "click",
-    startOrToggle
-  );
-
-  /* =========================================================
-     TOUCH CONTROLS
-  ========================================================= */
-
-  let tx = 0,
-      ty = 0,
-      swiped = false;
-
-  canvas.addEventListener(
-    "touchstart",
-    e => {
-
-      const t =
-        e.changedTouches[0];
-
-      tx =
-        t.clientX;
-
-      ty =
-        t.clientY;
-
-      swiped =
-        false;
-
+  /* ---------- input ---------- */
+  window.addEventListener("keydown", e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (setOpen) { if (e.key === "Escape") closeSettings(); return; }
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;     // typing a name
+    const name = KEYMAP[e.key];
+    if (name) {
       e.preventDefault();
-    },
-    {
-      passive: false
+      if (state === "ready") startOrToggle();
+      if (state === "running") steer(name);
+    } else if (e.code === "Space") {
+      e.preventDefault(); if (!e.repeat) startOrToggle();
+    } else if (e.key === "m" || e.key === "M") {
+      muted = !muted; cfg.sound = muted ? "off" : "on"; setSound.value = cfg.sound; saveCfg();
+    } else if (e.key === "r" || e.key === "R") {
+      reset();
+    } else if (e.key === "Enter" && state !== "running") {
+      e.preventDefault(); startOrToggle();
     }
-  );
+  });
 
-  canvas.addEventListener(
-    "touchmove",
-    e => {
+  ovBtn.addEventListener("click", startOrToggle);
 
-      e.preventDefault();
+  let tx = 0, ty = 0, swiped = false;
+  canvas.addEventListener("touchstart", e => {
+    const t = e.changedTouches[0]; tx = t.clientX; ty = t.clientY; swiped = false; e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener("touchmove", e => {
+    e.preventDefault();
+    const t = e.changedTouches[0], dx = t.clientX - tx, dy = t.clientY - ty;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+    const name = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+    tx = t.clientX; ty = t.clientY; swiped = true;          // re-anchor so chained swipes work
+    if (state === "ready") startOrToggle();
+    if (state === "running") steer(name);
+  }, { passive: false });
+  canvas.addEventListener("touchend", e => {
+    e.preventDefault();
+    if (!swiped && state !== "over" && state !== "won") startOrToggle();
+  }, { passive: false });
 
-      const t =
-        e.changedTouches[0];
-
-      const dx =
-        t.clientX -
-        tx;
-
-      const dy =
-        t.clientY -
-        ty;
-
-      if (
-        Math.max(
-          Math.abs(dx),
-          Math.abs(dy)
-        ) < 20
-      ) {
-        return;
-      }
-
-      const name =
-        Math.abs(dx) >
-        Math.abs(dy)
-          ? (
-              dx > 0
-                ? "right"
-                : "left"
-            )
-          : (
-              dy > 0
-                ? "down"
-                : "up"
-            );
-
-      tx =
-        t.clientX;
-
-      ty =
-        t.clientY;
-
-      swiped =
-        true;
-
-      if (botOn)
-        return;
-
-      if (
-        state === "ready"
-      ) {
-        startOrToggle();
-      }
-
-      if (
-        state === "running"
-      ) {
-        steer(name);
-      }
-    },
-    {
-      passive: false
-    }
-  );
-
-  canvas.addEventListener(
-    "touchend",
-    e => {
-
-      e.preventDefault();
-
-      if (
-        !swiped &&
-        state !== "over" &&
-        state !== "won"
-      ) {
-        startOrToggle();
-      }
-    },
-    {
-      passive: false
-    }
-  );
-
-  /* =========================================================
-     AUTO PAUSE
-  ========================================================= */
-
-  const autoPause =
-    () => {
-
-      if (
-        state === "running"
-      ) {
-        startOrToggle();
-      }
-    };
-
-  document.addEventListener(
-    "visibilitychange",
-    () => {
-
-      if (
-        document.hidden
-      ) {
-        autoPause();
-      }
-    }
-  );
-
-  window.addEventListener(
-    "blur",
-    () => {
-
-      /*
-        Bot continues running in
-        the background window.
-      */
-
-      if (!botOn)
-        autoPause();
-    }
-  );
-
-  /* =========================================================
-     START
-  ========================================================= */
+  const autoPause = () => { if (state === "running") startOrToggle(); };
+  document.addEventListener("visibilitychange", () => { if (document.hidden) autoPause(); });
+  window.addEventListener("blur", autoPause);
 
   reset();
-
-  requestAnimationFrame(
-    t => {
-
-      last = t;
-
-      loop(t);
-    }
-  );
-
+  requestAnimationFrame(t => { last = t; loop(t); });
 })();
 </script>
-
 </body>
 </html>

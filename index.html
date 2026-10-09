@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Snake</title>
+<title>AISnake</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="favicon.png">
 <style>
   :root {
     --bar: #4a752c; --page: #578a34; --a: #aad751; --b: #a2d149;
     box-sizing: border-box;
-    padding-top: env(safe-area-inset-top, 0px);
+    paddi ng-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing: border-box; }
@@ -151,8 +151,9 @@
   try { Object.assign(cfg, JSON.parse(localStorage.getItem("snake-cfg"))); } catch (e) {}
   if (!SPEEDS[cfg.speed]) cfg.speed = "normal";
   if (!MAPS[cfg.map]) cfg.map = "standard";
-  function presetV(s) { return Math.round(100 * Math.log((1000 / SPEEDS[s]) / 2) / Math.log(30)); }   // preset -> slider position
-  const speedDelay = () => 1000 / (2 * Math.pow(30, cfg.aiSpeed / 100));                              // slider 0..100 = 2..60 squares/sec
+  const MIN_SPS = 2, MAX_SPS = 100 * 7.41;                                                            // slider range: 2 squares/sec up to 100x normal speed (741/sec)
+  function presetV(s) { return Math.round(100 * Math.log((1000 / SPEEDS[s]) / MIN_SPS) / Math.log(MAX_SPS / MIN_SPS)); }   // preset -> slider position
+  const speedDelay = () => 1000 / (MIN_SPS * Math.pow(MAX_SPS / MIN_SPS, cfg.aiSpeed / 100));
   if (typeof cfg.aiSpeed !== "number" || !(cfg.aiSpeed >= 0 && cfg.aiSpeed <= 100)) cfg.aiSpeed = presetV(cfg.speed);
   if (cfg.perf !== "on") cfg.perf = "off";
   if (cfg.sound !== "off") cfg.sound = "on";
@@ -246,7 +247,7 @@
         if (document.hidden || setOpen) { overTimer = setTimeout(again, 500); return; }
         startOrToggle();
       };
-      overTimer = setTimeout(again, 1500);
+      overTimer = setTimeout(again, 0);
     }
   }
 
@@ -345,12 +346,13 @@
     const e = aiAcc.get(i) || { c: 0, t: 0 }; e.c++; e.t += target; aiAcc.set(i, e);
   }
   function aiReward(head, eating) {
-    aiPending.r = eating ? 10 : aiDist(snake[0]) > aiDist(head) ? .5 : -.7;
-    aiTrace.push(aiPending.i); if (aiTrace.length > 8) aiTrace.shift();
+    aiPending.r = eating ? Math.min(10 + 5 * score, 200) : aiDist(snake[0]) > aiDist(head) ? .5 : -.7;
+    aiTrace.push(aiPending.i); if (aiTrace.length > 20) aiTrace.shift();
   }
   function aiDie() {                                         // learn from the mistake: punish the death and the moves that led to it
-    if (aiPending) aiUpdate(aiPending.i, -100);
-    aiTrace.slice().reverse().forEach((i, k) => aiUpdate(i, -100 * Math.pow(.7, k + 1), .08));
+    const D = Math.min(150 + 10 * score, 300);                 // dying costs more the further you got
+    if (aiPending) aiUpdate(aiPending.i, -D);
+    aiTrace.slice().reverse().forEach((i, k) => aiUpdate(i, -D * Math.pow(.8, k + 1), .1));   // blame the last 20 moves too
     aiPending = null; aiTrace = []; aiGames++;
   }
   function aiEnd() { if (aiPending) aiUpdate(aiPending.i, aiPending.r); aiPending = null; aiTrace = []; }
@@ -468,6 +470,7 @@
 
   function finish(result) {
     aiSave();
+    if (cfg.auto === "on" && !document.hidden && !setOpen) { state = result; startOrToggle(); return; }   // auto replay: restart instantly
     if (result === "over") { shake = PERF ? 0 : 1; beep(200, 50, .4, "sawtooth"); } else beep(600, 1200, .4);
     state = result; deathAt = performance.now(); acc = delay;   // freeze at the last full position
     prev = snake.map(s => ({...s}));

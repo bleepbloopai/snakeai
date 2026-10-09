@@ -100,6 +100,14 @@
     padding: 10px 6px; background: var(--bar); color: #fff; border-radius: 20px; font-size: 12px; font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
   #speedWrap { position: relative; width: 28px; height: 150px; }
   #speedSlider { position: absolute; left: 50%; top: 50%; width: 150px; height: 28px; margin: 0; transform: translate(-50%, -50%) rotate(-90deg); accent-color: #4e7cf6; cursor: pointer; }
+  #parallelTraining { grid-column: 1 / -1; margin-top: 2px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.2); }
+  #parallelTraining h3 { margin: 0 0 6px; font-size: 14px; }
+  #parallelTraining p { margin: 7px 0 0; font-size: 12px; opacity: .86; line-height: 1.35; }
+  #parallelStatus { font-variant-numeric: tabular-nums; }
+  #parallelStart, #parallelStop { font: inherit; font-weight: 700; font-size: 14px; color: #fff; border: 0; border-radius: 20px; padding: 7px 14px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  #parallelStart { background: #4e7cf6; box-shadow: 0 2px 0 #2f55c4; }
+  #parallelStop { background: #a63d32; }
+  #parallelStart:disabled, #parallelStop:disabled { opacity: .45; cursor: default; }
   /* Performance Mode: drop CSS animations/transitions */
   .perf .overlay { transition: none; }
   .perf .overlay.show h2, .perf .overlay.show p, .perf .stat span.pop { animation: none; }
@@ -125,6 +133,13 @@
       <label>Sound <select id="setSound"><option value="on">On</option><option value="off">Off</option></select></label>
       <label>Run in background <select id="setBg"><option value="off">Off</option><option value="on">On</option></select></label>
       <label>Auto replay <select id="setAuto"><option value="off">Off</option><option value="on">On</option></select></label>
+      <div id="parallelTraining">
+        <h3>Parallel Games training</h3>
+        <label>Hidden snakes <select id="parallelCount"><option value="0">Off</option><option value="8">8</option><option value="32">32</option><option value="100">100</option></select></label>
+        <button id="parallelStart" type="button">Start training</button>
+        <button id="parallelStop" type="button" disabled>Stop training</button>
+        <p id="parallelStatus">Training is off. Hidden games use the same shared AI brain as the visible snake.</p>
+      </div>
     </div>
     <button id="setReset" type="button">Reset colors</button>
     <p id="setNote">Performance mode removes shadows, particles, screen shake and animations, and draws at 1x resolution.</p>
@@ -188,6 +203,7 @@
   const ovTitle = $("ovTitle"), ovSub = $("ovSub"), ovBtn = $("ovBtn");
   const settingsEl = $("settings"), setSpeed = $("setSpeed"), setMap = $("setMap"), setApples = $("setApples");
   const setSnake = $("setSnake"), setMapColor = $("setMapColor"), setPerf = $("setPerf"), setSound = $("setSound"), setAuto = $("setAuto"), setBg = $("setBg");
+  const parallelCount = $("parallelCount"), parallelStart = $("parallelStart"), parallelStop = $("parallelStop"), parallelStatus = $("parallelStatus");
   const speedSlider = $("speedSlider");
   speedSlider.addEventListener("input", () => { cfg.aiSpeed = +speedSlider.value; delay = speedDelay(); saveCfg(); });
   speedSlider.addEventListener("change", () => speedSlider.blur());
@@ -293,7 +309,8 @@
   for (const el of [setSpeed, setMap, setApples]) el.addEventListener("change", () => {
     cfg.speed = setSpeed.value; if (el === setSpeed) cfg.aiSpeed = presetV(cfg.speed); cfg.map = setMap.value; cfg.apples = parseInt(setApples.value, 10) || 1;
     saveCfg();
-    el.blur(); if (state === "ready") reset();
+    el.blur(); if (parallelRunning && (el === setMap || el === setApples)) stopParallelTraining("Training stopped because the board settings changed.");
+    if (state === "ready") reset();
   });
 
   /* ---------- settings tab ---------- */
@@ -397,6 +414,72 @@
     }
   }
   aiSync(0);
+  /* ---------- parallel training: worker pool, one main-thread shared Q-table ---------- */
+  let parallelWorkers = [], parallelRunning = false, parallelTrained = 0, parallelLastBroadcast = 0;
+  function parallelWorker() {
+  "use strict";
+  let q = new Float32Array(576 * 3), running = false, cfg = null, lanes = 1, games = 0;
+  const GAMMA = .9, ALPHA = .15, EPS = .05, D = [[0,-1],[1,0],[0,1],[-1,0]];
+  const key = (x,y) => x + "," + y;
+  const hash = (x,y,s) => { let h = Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^Math.imul(s|0,1274126177); h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; };
+  const wall = (x,y,s) => !cfg.inf ? false : !((x>-4&&x<16&&Math.abs(y-Math.floor(cfg.rows/2))<4)) && (hash(x,y,s)<.015 || (hash(x>>1,y>>1,s+7)<.07 && hash(x,y,s)>=.015));
+  const blocked = (x,y,body,s) => (!cfg.inf&&(x<0||y<0||x>=cfg.cols||y>=cfg.rows)) || wall(x,y,s) || body.has(key(x,y));
+  function area(sx,sy,body,seed,cap) { const seen=new Set([key(sx,sy)]), stack=[[sx,sy]]; let n=0; while(stack.length&&n<cap){const [x,y]=stack.pop();n++; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy,k=key(nx,ny);if(!seen.has(k)&&!blocked(nx,ny,body,seed)){seen.add(k);stack.push([nx,ny]);}}} return n; }
+  function state(snake,dir,foods,seed) { const h=snake[0], body=new Set(snake.slice(0,-1).map(c=>key(c.x,c.y))), left=[-dir[1],dir[0]], right=[dir[1],-dir[0]], mv=[dir,left,right], db=0,rb=0,cells=[]; let danger=0,room=0; mv.forEach((m,i)=>{const x=h.x+m[0],y=h.y+m[1];cells.push({x,y});if(blocked(x,y,body,seed))danger|=1<<i;else if(area(x,y,body,seed,snake.length)>=snake.length)room|=1<<i;}); let f=foods[0]||h,bd=1e9; for(const c of foods){const dd=Math.abs(c.x-h.x)+Math.abs(c.y-h.y);if(dd<bd){bd=dd;f=c;}} const fx=f.x-h.x,fy=f.y-h.y,sf=Math.sign(fx*dir[0]+fy*dir[1]),sl=Math.sign(fx*right[0]+fy*right[1]); return {s:(danger*8+room)*9+(sf+1)*3+(sl+1),mv,cells,db:danger,rb:room}; }
+  const dist=(foods,c)=>foods.reduce((m,f)=>Math.min(m,Math.abs(f.x-c.x)+Math.abs(f.y-c.y)),1e9);
+  function max(st){let m=-1e9;for(let a=0;a<3;a++)if(!(st.db>>a&1))m=Math.max(m,q[st.s*3+a]);return m<-1e8?-100:m;}
+  function choose(st,foods,snake){const d0=dist(foods,snake[0]), cand=[], vals=[];let best=-1,bv=-1e9;for(let a=0;a<3;a++){if(st.db>>a&1)continue;const v=q[st.s*3+a]+((st.rb>>a&1)?0:-30)+(d0-dist(foods,st.cells[a]))*.5+Math.random()*.01;cand.push(a);vals.push(v);if(v>bv){bv=v;best=a;}}if(best<0)return 0;if(Math.random()<EPS&&cand.length>1)best=cand[Math.floor(Math.random()*cand.length)];return best;}
+  function add(up,i,target){const e=up.get(i)||[0,0];e[0]++;e[1]+=target;up.set(i,e);}
+  function food(snake,foods,seed){const taken=new Set(snake.concat(foods).map(c=>key(c.x,c.y))),free=[],x0=cfg.inf?snake[0].x-8:0,y0=cfg.inf?snake[0].y-7:0;for(let y=y0;y<y0+cfg.rows;y++)for(let x=x0;x<x0+cfg.cols;x++)if(!taken.has(key(x,y))&&!wall(x,y,seed))free.push({x,y});if(free.length)foods.push(free[Math.floor(Math.random()*free.length)]);}
+  function one(up){const seed=(Math.random()*2147483647)|0,cy=Math.floor(cfg.rows/2),snake=[{x:5,y:cy},{x:4,y:cy},{x:3,y:cy}],foods=[],dir=[1,0];let score=0;food(snake,foods,seed);let pending=null,trace=[];for(let step=0;step<Math.min(3000,cfg.maxSteps);step++){const st=state(snake,dir,foods,seed);if(pending)add(up,pending.i,pending.r+GAMMA*max(st));const act=choose(st,foods,snake);dir=st.mv[act];pending={i:st.s*3+act,r:0};const head={x:snake[0].x+dir[0],y:snake[0].y+dir[1]},hit=blocked(head.x,head.y,new Set(snake.slice(0,-1).map(c=>key(c.x,c.y))),seed),fi=hit?-1:foods.findIndex(f=>f.x===head.x&&f.y===head.y),eating=fi>=0;pending.r=eating?Math.min(10+5*score,200):(dist(foods,snake[0])>dist(foods,head)? .5:-.7);trace.push(pending.i);if(trace.length>20)trace.shift();if(hit){const pen=Math.min(150+10*score,300);add(up,pending.i,-pen);trace.slice(0,-1).reverse().forEach((i,k)=>add(up,i,-pen*Math.pow(.8,k+1)));break;}snake.unshift(head);if(eating){score++;foods.splice(fi,1);food(snake,foods,seed);}else snake.pop();if(!foods.length)food(snake,foods,seed);if(cfg.inf)for(let i=foods.length-1;i>=0;i--)if(Math.abs(foods[i].x-head.x)>10||Math.abs(foods[i].y-head.y)>9){foods.splice(i,1);food(snake,foods,seed);}}games++;}
+  function loop(){if(!running)return;const up=new Map();for(let i=0;i<lanes;i++)one(up);postMessage({type:"batch",games,updates:Array.from(up,([i,e])=>[i,e[0],e[1]])});games=0;setTimeout(loop,0);}
+  onmessage=e=>{const m=e.data;if(m.type==="init"){cfg=m.cfg;lanes=m.lanes;q=Float32Array.from(m.q);running=true;loop();}else if(m.type==="q"){q=Float32Array.from(m.q);}else if(m.type==="stop"){running=false;} };
+}
+  const PARALLEL_WORKER_SOURCE = '(' + parallelWorker.toString() + ')()';
+  function parallelSetStatus(text) { parallelStatus.textContent = text; }
+  function parallelBroadcast() { const snapshot = Array.from(Q); for (const w of parallelWorkers) w.postMessage({ type: "q", q: snapshot }); parallelLastBroadcast = performance.now(); }
+  function parallelHandleBatch(m) {
+    if (!parallelRunning) return;
+    parallelTrained += m.games || 0;
+    for (const [i, count, total] of (m.updates || [])) {
+      if (!count) continue;
+      const target = total / count, e = aiAcc.get(i) || { c: 0, t: 0 };
+      e.c += count; e.t += total; aiAcc.set(i, e);
+      // Apply the aggregated updates as repeated online updates to the one shared Q-table.
+      Q[i] += (1 - Math.pow(1 - ALPHA, count)) * (target - Q[i]);
+    }
+    parallelSetStatus("Training " + parallelCount.value + " hidden snakes · " + parallelTrained.toLocaleString() + " games completed · shared brain active");
+    if (performance.now() - parallelLastBroadcast > 500) parallelBroadcast();
+    aiSync(4000);
+  }
+  function stopParallelTraining(message = "Training is off. Hidden games use the same shared AI brain as the visible snake.") {
+    for (const w of parallelWorkers) { try { w.postMessage({ type: "stop" }); w.terminate(); } catch (e) {} }
+    parallelWorkers = []; parallelRunning = false; parallelStart.disabled = false; parallelStop.disabled = true;
+    parallelSetStatus(message);
+  }
+  function startParallelTraining() {
+    stopParallelTraining();
+    const requested = Number(parallelCount.value);
+    if (!requested) return;
+    if (!window.Worker) { parallelSetStatus("Parallel training is unavailable in this browser."); parallelCount.value = "0"; return; }
+    const workerURL = URL.createObjectURL(new Blob([PARALLEL_WORKER_SOURCE], { type: "text/javascript" }));
+    const cores = Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
+    const pool = Math.min(requested, cores, 8), base = Math.floor(requested / pool), extra = requested % pool;
+    parallelRunning = true; parallelTrained = 0; parallelStart.disabled = true; parallelStop.disabled = false;
+    parallelSetStatus("Starting " + requested + " hidden snakes across " + pool + " CPU worker" + (pool === 1 ? "" : "s") + "…");
+    const trainCfg = { cols: COLS, rows: ROWS, inf: INF, maxSteps: Math.max(800, COLS * ROWS * 12) };
+    for (let i = 0; i < pool; i++) {
+      const w = new Worker(workerURL);
+      w.onmessage = e => parallelHandleBatch(e.data);
+      w.onerror = () => parallelSetStatus("A training worker stopped unexpectedly; remaining workers continue.");
+      parallelWorkers.push(w);
+      w.postMessage({ type: "init", lanes: base + (i < extra ? 1 : 0), cfg: trainCfg, q: Array.from(Q) });
+    }
+    URL.revokeObjectURL(workerURL);
+  }
+  parallelStart.addEventListener("click", startParallelTraining);
+  parallelStop.addEventListener("click", () => stopParallelTraining());
+  parallelCount.addEventListener("change", () => { if (parallelRunning) startParallelTraining(); });
 
   /* ---------- background mode: a Web Worker timer keeps the game stepping while the tab is hidden ---------- */
   let bgWorker = null, bgNode = null;
@@ -746,6 +829,7 @@
   }, { passive: false });
 
   const autoPause = () => { if (cfg.bg !== "on" && state === "running") startOrToggle(); };
+  window.addEventListener("beforeunload", () => stopParallelTraining());
   document.addEventListener("visibilitychange", () => { if (document.hidden) autoPause(); });
   window.addEventListener("blur", autoPause);
 

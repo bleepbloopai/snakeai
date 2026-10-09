@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AISnake</title>
+<title>AI Snake</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="favicon.png">
 <style>
   :root {
     --bar: #4a752c; --page: #578a34; --a: #aad751; --b: #a2d149;
     box-sizing: border-box;
-    paddi ng-top: env(safe-area-inset-top, 0px);
+    padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing: border-box; }
@@ -70,23 +70,32 @@
     color: #1f2b1a; background: #fff; text-align: center;
   }
   #settings input { width: 70px; }
-  #setBtn { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 10px; z-index: 5; font: inherit; font-size: 14px; font-weight: 700;
+  #lbBtn, #setBtn { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 10px; z-index: 5; font: inherit; font-size: 14px; font-weight: 700;
     color: #fff; background: var(--bar); border: 0; border-radius: 20px; padding: 8px 14px; cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
-  #setBtn img { width: 18px; height: 18px; object-fit: contain; vertical-align: -3px; }
+  #lbBtn img, #setBtn img { width: 18px; height: 18px; object-fit: contain; vertical-align: -3px; }
   #setBtn { left: auto; right: 10px; }
-  #setModal { position: fixed; inset: 0; z-index: 10; background: rgba(20,40,10,.6); display: flex; align-items: center; justify-content: center; padding: 12px; }
-  #setModal[hidden] { display: none; }
-  #setCard { background: var(--bar); color: #fff; border-radius: 12px; width: min(780px, 100%); max-height: 100%; overflow-y: auto; padding: 16px 18px; }
+  #lbModal, #setModal { position: fixed; inset: 0; z-index: 10; background: rgba(20,40,10,.6); display: flex; align-items: center; justify-content: center; padding: 12px; }
+  #lbModal[hidden], #setModal[hidden] { display: none; }
+  #lbCard, #setCard { background: var(--bar); color: #fff; border-radius: 12px; width: min(780px, 100%); max-height: 100%; overflow-y: auto; padding: 16px 18px; }
   #setCard { width: min(420px, 100%); }
-  #setHead { display: flex; justify-content: space-between; align-items: center; }
-  #setHead h2 { margin: 0; font-size: 22px; }
-  #setClose { font: inherit; font-size: 22px; color: #fff; background: none; border: 0; cursor: pointer; }
+  #lbHead, #setHead { display: flex; justify-content: space-between; align-items: center; }
+  #lbHead h2, #setHead h2 { margin: 0; font-size: 22px; }
+  #lbClose, #setClose { font: inherit; font-size: 22px; color: #fff; background: none; border: 0; cursor: pointer; }
   #setGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 14px; }
   #setGrid label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
   #setGrid select { font: inherit; font-size: 15px; padding: 8px 12px; border: 0; border-radius: 16px; color: #1f2b1a; background: #fff; }
   #setGrid input[type=color] { width: 100%; height: 38px; border: 0; border-radius: 16px; padding: 3px 6px; background: #fff; cursor: pointer; }
   #setReset { font: inherit; font-weight: 700; font-size: 14px; color: #fff; background: #4e7cf6; border: 0; border-radius: 20px; padding: 8px 16px; margin-top: 16px; cursor: pointer; box-shadow: 0 2px 0 #2f55c4; }
   #setNote { margin: 12px 0 0; font-size: 12px; opacity: .85; line-height: 1.35; }
+  .lbMap h3 { margin: 14px 0 6px; font-size: 16px; }
+  .lbRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .lbBox { background: rgba(255,255,255,.1); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+  .lbBox h4 { margin: 0 0 4px; font-size: 13px; opacity: .85; }
+  .lbBox ol { margin: 0; padding: 0; list-style: none; }
+  .lbBox li { display: flex; gap: 8px; padding: 1px 0; }
+  .lbBox .rk { width: 16px; opacity: .7; }
+  .lbBox .sc { font-weight: 700; min-width: 34px; font-variant-numeric: tabular-nums; }
+  .lbBox .dt { opacity: .7; font-size: 12px; align-self: center; }
   #speedBox { position: fixed; left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 6px;
     padding: 10px 6px; background: var(--bar); color: #fff; border-radius: 20px; font-size: 12px; font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
   #speedWrap { position: relative; width: 28px; height: 150px; }
@@ -97,8 +106,15 @@
 </style>
 </head>
 <body>
+<button id="lbBtn" type="button"><img src="trophy.png" alt=""> Leaderboards</button>
 <button id="setBtn" type="button"><img src="cog.png" alt=""> Settings</button>
 <div id="speedBox" title="Snake speed"><span>Fast</span><div id="speedWrap"><input id="speedSlider" type="range" min="0" max="100" step="1" value="38" aria-label="Snake speed"></div><span>Slow</span></div>
+<div id="lbModal" hidden>
+  <div id="lbCard" role="dialog" aria-label="Leaderboards">
+    <div id="lbHead"><h2>Best attempts · this device</h2><button id="lbClose" type="button" aria-label="Close">✕</button></div>
+    <div id="lbBody"></div>
+  </div>
+</div>
 <div id="setModal" hidden>
   <div id="setCard" role="dialog" aria-label="Settings">
     <div id="setHead"><h2>Settings</h2><button id="setClose" type="button" aria-label="Close">✕</button></div>
@@ -107,6 +123,7 @@
       <label>Map color <input id="setMapColor" type="color" value="#aad751"></label>
       <label>Performance mode <select id="setPerf"><option value="off">Off</option><option value="on">On</option></select></label>
       <label>Sound <select id="setSound"><option value="on">On</option><option value="off">Off</option></select></label>
+      <label>Run in background <select id="setBg"><option value="off">Off</option><option value="on">On</option></select></label>
       <label>Auto replay <select id="setAuto"><option value="off">Off</option><option value="on">On</option></select></label>
     </div>
     <button id="setReset" type="button">Reset colors</button>
@@ -147,7 +164,7 @@
   const SPEEDS = { slow: 179.55, normal: 1000 / 7.41, fast: 89.1 };     // ms per square (5.57 / 7.41 / 11.22 squares per second)
   const MAPS = { small: [9, 10], standard: [15, 17], large: [21, 24], infinite: [17, 15] };  // [columns, rows]
   const DEF_SNAKE = "#4e7cf6", DEF_MAP = "#aad751";
-  let cfg = { speed: "normal", map: "standard", apples: 1, perf: "off", sound: "on", snakeColor: DEF_SNAKE, mapColor: DEF_MAP, aiSpeed: null, auto: "off" };
+  let cfg = { speed: "normal", map: "standard", apples: 1, perf: "off", sound: "on", snakeColor: DEF_SNAKE, mapColor: DEF_MAP, aiSpeed: null, auto: "off", bg: "off" };
   try { Object.assign(cfg, JSON.parse(localStorage.getItem("snake-cfg"))); } catch (e) {}
   if (!SPEEDS[cfg.speed]) cfg.speed = "normal";
   if (!MAPS[cfg.map]) cfg.map = "standard";
@@ -158,6 +175,7 @@
   if (cfg.perf !== "on") cfg.perf = "off";
   if (cfg.sound !== "off") cfg.sound = "on";
   if (cfg.auto !== "on") cfg.auto = "off";
+  if (cfg.bg !== "on") cfg.bg = "off";
   if (!/^#[0-9a-f]{6}$/i.test(cfg.snakeColor)) cfg.snakeColor = DEF_SNAKE;
   if (!/^#[0-9a-f]{6}$/i.test(cfg.mapColor)) cfg.mapColor = DEF_MAP;
   const saveCfg = () => { try { localStorage.setItem("snake-cfg", JSON.stringify(cfg)); } catch (e) {} };
@@ -169,7 +187,7 @@
   const scoreEl = $("score"), bestEl = $("best"), overlay = $("overlay");
   const ovTitle = $("ovTitle"), ovSub = $("ovSub"), ovBtn = $("ovBtn");
   const settingsEl = $("settings"), setSpeed = $("setSpeed"), setMap = $("setMap"), setApples = $("setApples");
-  const setSnake = $("setSnake"), setMapColor = $("setMapColor"), setPerf = $("setPerf"), setSound = $("setSound"), setAuto = $("setAuto");
+  const setSnake = $("setSnake"), setMapColor = $("setMapColor"), setPerf = $("setPerf"), setSound = $("setSound"), setAuto = $("setAuto"), setBg = $("setBg");
   const speedSlider = $("speedSlider");
   speedSlider.addEventListener("input", () => { cfg.aiSpeed = +speedSlider.value; delay = speedDelay(); saveCfg(); });
   speedSlider.addEventListener("change", () => speedSlider.blur());
@@ -214,7 +232,7 @@
   function applyLook() {
     PERF = cfg.perf === "on"; document.body.classList.toggle("perf", PERF);
     SNAKE = cfg.snakeColor; applyTheme();
-    setSnake.value = cfg.snakeColor; setMapColor.value = cfg.mapColor; setPerf.value = cfg.perf; setSound.value = cfg.sound; setAuto.value = cfg.auto;
+    setSnake.value = cfg.snakeColor; setMapColor.value = cfg.mapColor; setPerf.value = cfg.perf; setSound.value = cfg.sound; setAuto.value = cfg.auto; setBg.value = cfg.bg;
   }
 
   /* ---------- polish: sound + particles ---------- */
@@ -244,7 +262,7 @@
     if (cfg.auto === "on") {                                  // auto replay: start the next game by itself
       const again = () => {
         if (cfg.auto !== "on" || (state !== "over" && state !== "won")) return;
-        if (document.hidden || setOpen) { overTimer = setTimeout(again, 500); return; }
+        if ((document.hidden && cfg.bg !== "on") || setOpen || lbOpen) { overTimer = setTimeout(again, 500); return; }
         startOrToggle();
       };
       overTimer = setTimeout(again, 0);
@@ -293,6 +311,7 @@
   setMapColor.addEventListener("input", () => { cfg.mapColor = setMapColor.value; applyLook(); saveCfg(); });
   setPerf.addEventListener("change", () => { cfg.perf = setPerf.value; applyLook(); resize(); saveCfg(); setPerf.blur(); });
   setSound.addEventListener("change", () => { cfg.sound = setSound.value; muted = cfg.sound === "off"; saveCfg(); setSound.blur(); });
+  setBg.addEventListener("change", () => { cfg.bg = setBg.value; saveCfg(); bgApply(); setBg.blur(); });
   setAuto.addEventListener("change", () => { cfg.auto = setAuto.value; saveCfg(); setAuto.blur(); });
   $("setReset").addEventListener("click", e => { cfg.snakeColor = DEF_SNAKE; cfg.mapColor = DEF_MAP; applyLook(); saveCfg(); e.currentTarget.blur(); });
 
@@ -379,6 +398,75 @@
   }
   aiSync(0);
 
+  /* ---------- background mode: a Web Worker timer keeps the game stepping while the tab is hidden ---------- */
+  let bgWorker = null, bgNode = null;
+  function bgKeepAlive() {                                   // near-silent audio stops the browser from freezing a hidden tab
+    if (cfg.bg !== "on") return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      if (!bgNode) { bgNode = actx.createOscillator(); const g = actx.createGain(); g.gain.value = 0.0002; bgNode.connect(g); g.connect(actx.destination); bgNode.start(); }
+    } catch (e) {}
+  }
+  function bgApply() {
+    if (cfg.bg === "on") {
+      if (!bgWorker) try {
+        bgWorker = new Worker(URL.createObjectURL(new Blob(["setInterval(()=>postMessage(0),25)"], { type: "text/javascript" })));
+        bgWorker.onmessage = () => { if (document.hidden && cfg.bg === "on") advance(performance.now(), .025); };
+      } catch (e) {}
+      bgKeepAlive();
+    } else {
+      if (bgWorker) { bgWorker.terminate(); bgWorker = null; }
+      if (bgNode) { try { bgNode.stop(); } catch (e) {} bgNode = null; }
+    }
+  }
+
+  /* ---------- local leaderboards: best 5 attempts per map x speed, saved on this device ---------- */
+  const LB_KEY = "snake-local-lb:", lbCache = {};
+  function lbGet(m) {
+    if (!lbCache[m]) { try { const a = JSON.parse(localStorage.getItem(LB_KEY + m)); lbCache[m] = Array.isArray(a) ? a : []; } catch (e) { lbCache[m] = []; } }
+    return lbCache[m];
+  }
+  function lbRecord(sc) {
+    if (sc <= 0) return;
+    const rows = lbGet(curMode);
+    if (rows.length >= 5 && sc <= rows[rows.length - 1].score) return;      // not good enough: no work, no write
+    rows.push({ score: sc, t: Date.now() });
+    rows.sort((a, b) => b.score - a.score || a.t - b.t);
+    rows.length = Math.min(rows.length, 5);
+    try { localStorage.setItem(LB_KEY + curMode, JSON.stringify(rows)); } catch (e) {}
+  }
+  const lbModal = $("lbModal"), lbBody = $("lbBody"), cap = w => w[0].toUpperCase() + w.slice(1);
+  let lbOpen = false;
+  function closeLb() { lbOpen = false; lbModal.hidden = true; }
+  function openLb() {
+    lbOpen = true; if (state === "running") startOrToggle();      // pause the game
+    lbModal.hidden = false; lbBody.textContent = "";
+    for (const m of Object.keys(MAPS)) {
+      const sec = document.createElement("div"); sec.className = "lbMap";
+      const h = document.createElement("h3"); h.textContent = cap(m) + " map"; sec.appendChild(h);
+      const row = document.createElement("div"); row.className = "lbRow";
+      for (const sp of Object.keys(SPEEDS)) {
+        const box = document.createElement("div"); box.className = "lbBox";
+        const h4 = document.createElement("h4"); h4.textContent = cap(sp); box.appendChild(h4);
+        const ol = document.createElement("ol"), rows = lbGet(m + "-" + sp);
+        rows.forEach((r, i) => {
+          const li = document.createElement("li");
+          for (const [cls, txt] of [["rk", i + 1], ["sc", r.score], ["dt", new Date(r.t).toLocaleDateString(undefined, { month: "short", day: "numeric" })]]) {
+            const e = document.createElement("span"); e.className = cls; e.textContent = txt; li.appendChild(e);
+          }
+          ol.appendChild(li);
+        });
+        if (!rows.length) { const li = document.createElement("li"); li.textContent = "No scores yet"; ol.appendChild(li); }
+        box.appendChild(ol); row.appendChild(box);
+      }
+      sec.appendChild(row); lbBody.appendChild(sec);
+    }
+  }
+  $("lbBtn").addEventListener("click", e => { e.currentTarget.blur(); openLb(); });
+  $("lbClose").addEventListener("click", closeLb);
+  lbModal.addEventListener("click", e => { if (e.target === lbModal) closeLb(); });
+
   /* ---------- game logic ---------- */
   function reset() {
     clearTimeout(overTimer); runId++; applyConfig();
@@ -417,6 +505,7 @@
   }
 
   function startOrToggle() {
+    bgKeepAlive();
     if (state === "ready") { state = "running"; hideOverlay(); }
     else if (state === "running") { state = "paused"; showOverlay("Paused", "Press Space to resume", "Resume"); return; }
     else if (state === "paused") { state = "running"; hideOverlay(); }
@@ -469,8 +558,8 @@
   }
 
   function finish(result) {
-    aiSave();
-    if (cfg.auto === "on" && !document.hidden && !setOpen) { state = result; startOrToggle(); return; }   // auto replay: restart instantly
+    aiSave(); lbRecord(score);
+    if (cfg.auto === "on" && (!document.hidden || cfg.bg === "on") && !setOpen && !lbOpen) { state = result; startOrToggle(); return; }   // auto replay: restart instantly
     if (result === "over") { shake = PERF ? 0 : 1; beep(200, 50, .4, "sawtooth"); } else beep(600, 1200, .4);
     state = result; deathAt = performance.now(); acc = delay;   // freeze at the last full position
     prev = snake.map(s => ({...s}));
@@ -596,18 +685,21 @@
   }
 
   /* ---------- main loop ---------- */
+  function advance(now, dt) {                                  // game clock: runs from the screen loop, or from the worker timer when the tab is hidden
+    if (state === "countdown" && !lbOpen && !setOpen && (cdT += dt) >= 3) { state = "running"; acc = 0; last = now; }
+    if (state === "running" && !waiting) {
+      acc += Math.min(now - last, 100);
+      last = now;
+      while (acc >= delay && state === "running") { acc -= delay; tick(); }
+    } else last = now;
+  }
   function loop(now) {
     const dt = Math.min((now - (lastFrame || now)) / 1000, .05); lastFrame = now;
     let da = Math.atan2(dir.y, dir.x) - ang; da = Math.atan2(Math.sin(da), Math.cos(da)); ang += da * Math.min(1, dt * 16);
     shake = Math.max(0, shake - dt * 2.5);
     for (const q of particles) { q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= .93; q.vy *= .93; q.life -= dt * 2.2; }
     particles = particles.filter(q => q.life > 0);
-    if (state === "countdown" && !setOpen && (cdT += dt) >= 3) { state = "running"; acc = 0; last = now; }
-    if (state === "running" && !waiting) {
-      acc += Math.min(now - last, 100);
-      last = now;
-      while (acc >= delay && state === "running") { acc -= delay; tick(); }
-    } else last = now;
+    advance(now, dt);
     draw(now);
     requestAnimationFrame(loop);
   }
@@ -615,7 +707,7 @@
   /* ---------- input ---------- */
   window.addEventListener("keydown", e => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (setOpen) { if (e.key === "Escape") closeSettings(); return; }
+    if (lbOpen || setOpen) { if (e.key === "Escape") { closeLb(); closeSettings(); } return; }
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;     // typing a name
     const name = KEYMAP[e.key];
     if (name) {
@@ -653,13 +745,18 @@
     if (!swiped && state !== "over" && state !== "won") startOrToggle();
   }, { passive: false });
 
-  const autoPause = () => { if (state === "running") startOrToggle(); };
+  const autoPause = () => { if (cfg.bg !== "on" && state === "running") startOrToggle(); };
   document.addEventListener("visibilitychange", () => { if (document.hidden) autoPause(); });
   window.addEventListener("blur", autoPause);
 
+  bgApply();
   reset();
   requestAnimationFrame(t => { last = t; loop(t); });
 })();
 </script>
+      <footer>
+        <p>The longer it plays, the smarter it gets.
+        </p>
+    </footer>
 </body>
 </html>
